@@ -1,0 +1,1485 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stack Dive</title>
+<meta name="description" content="CPSC 121A recursion practice for pairs: follow every call down to the base case and carry the answers back up.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2300244E'/%3E%3Cpath d='M16 5v17m-6-6 6 6 6-6' fill='none' stroke='%23FF7900' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M7 27h18' stroke='%238ACCE4' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;700&display=swap">
+<style>
+:root {
+  /* Cal State Fullerton: Titan Blue carries the page, Titan Orange is the one accent. */
+  --titan: #00244E;
+  --orange: #FF7900;
+  --cal: #164686;
+  --brill: #2973B6;
+  --sky: #8ACCE4;
+  --citrus: #EDA941;
+  --abyss: #03101F;
+  --white: #FFFFFF;
+  --text: #EEF2F6;
+  --muted: #A9BFC6;
+  --green: #A6DB86;
+  --red: #FF9C8C;
+  --panel: rgba(3, 16, 31, 0.74);
+  --line: rgba(138, 204, 228, 0.22);
+  --line-strong: rgba(138, 204, 228, 0.5);
+  --tok-type: #8ACCE4;
+  --tok-id: #FFA352;
+  --tok-val: #A6DB86;
+  --tok-com: #8796A5;
+  --font: 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'Atkinson Hyperlegible Mono', Consolas, ui-monospace, 'SF Mono', Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  min-height: 100vh;
+  /* The page is the water: lit near the surface, black at the bottom. */
+  background: linear-gradient(#256CAB 0, var(--cal) 22%, var(--titan) 55%, var(--abyss) 100%) fixed;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 17px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+[hidden] { display: none !important; }
+code, .mono { font-family: var(--mono); }
+p { margin: 0 0 0.7em; }
+p:last-child { margin-bottom: 0; }
+p code, li code, label code, .q code {
+  font-size: 0.93em;
+  background: rgba(138, 204, 228, 0.14);
+  border-radius: 5px;
+  padding: 0.05em 0.35em;
+  white-space: nowrap;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: 0.5; }
+:focus-visible { outline: 3px solid var(--sky); outline-offset: 2px; }
+
+.btn {
+  border: 0; border-radius: 999px; padding: 0.6em 1.3em; font-weight: 700;
+  background: var(--orange); color: var(--titan);
+}
+.btn:hover:not(:disabled) { background: #FF8E26; }
+.btn.quiet { background: transparent; color: var(--text); border: 1.5px solid var(--line-strong); }
+.btn.quiet:hover:not(:disabled) { background: rgba(138, 204, 228, 0.12); }
+.linkish { background: none; border: 0; padding: 0; color: var(--muted); text-decoration: underline; font-size: 0.9rem; }
+.linkish:hover { color: var(--text); }
+
+/* ------------------------------------------------------------ start */
+#v-start { max-width: 1060px; margin: 0 auto; padding: 5vh 20px 60px; }
+.hero { display: grid; grid-template-columns: 1.15fr 1fr; gap: 48px; align-items: start; }
+.wordmark {
+  font-size: clamp(3.4rem, 10vw, 6.6rem); font-weight: 700; line-height: 0.92; letter-spacing: -0.02em;
+  margin: 0 0 0.95em; color: var(--white);
+}
+/* Each letter sits one step lower than the last: the title dives. */
+.wordmark .w { display: block; white-space: nowrap; }
+.wordmark .w + .w { margin-left: 1.15em; color: var(--orange); }
+.wordmark .w span { display: inline-block; transform: translateY(calc(var(--n) * 0.075em)); }
+.pitch { font-size: 1.3rem; max-width: 26em; color: var(--white); }
+.rules { list-style: none; margin: 1.6em 0 0; padding: 0; max-width: 30em; }
+.rules li { padding: 0.75em 0; border-top: 1px solid var(--line); color: var(--text); }
+.rules b { color: var(--white); }
+.join {
+  background: var(--white); color: var(--titan); border-radius: 18px; padding: 26px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+.join h2 { margin: 0 0 0.2em; font-size: 1.35rem; }
+.join p { color: #222; }
+.join label { display: block; font-weight: 700; margin: 0.9em 0 0.25em; font-size: 0.95rem; }
+.join input {
+  width: 100%; padding: 0.6em 0.75em; border-radius: 10px; border: 1.5px solid #9AA8B8;
+  background: var(--white); color: #222; color-scheme: light;
+}
+.join input:focus-visible { outline: 3px solid var(--brill); outline-offset: 1px; }
+.join .btn { margin-top: 1.2em; width: 100%; font-size: 1.1rem; padding: 0.75em; }
+.join .linkish { color: var(--cal); margin-top: 0.8em; }
+.join .err { color: #A32100; font-weight: 700; margin: 0.8em 0 0; min-height: 1.4em; }
+.resume { border-bottom: 1px solid #D5DAE0; padding-bottom: 18px; margin-bottom: 18px; }
+.resume .btn { margin-top: 0.6em; }
+
+/* ------------------------------------------------------------ top bar */
+.bar {
+  position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 18px;
+  padding: 10px 20px; background: rgba(0, 36, 78, 0.92); border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(6px);
+}
+.bar .who { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 12em; }
+.pips { display: flex; gap: 6px; align-items: center; flex: 1; flex-wrap: wrap; }
+.pip {
+  width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line-strong);
+  font-size: 0.72rem; font-weight: 700; display: grid; place-items: center; color: var(--muted);
+}
+.pip.done { background: var(--sky); border-color: var(--sky); color: var(--titan); }
+.pip.skip { border-style: dashed; }
+.pip.here { border-color: var(--orange); color: var(--white); box-shadow: 0 0 0 3px rgba(255, 121, 0, 0.25); }
+.pip.bonus { border-radius: 6px; }
+.stat { display: flex; align-items: center; gap: 6px; white-space: nowrap; font-weight: 700; }
+.stat small { font-weight: 400; color: var(--muted); font-size: 0.82rem; }
+.air { display: flex; gap: 4px; }
+.air i {
+  width: 15px; height: 15px; border-radius: 50%; border: 2px solid var(--sky);
+  background: radial-gradient(circle at 35% 30%, #fff 0 18%, rgba(138, 204, 228, 0.55) 22%);
+}
+.air i.gone { background: none; border-color: var(--line); }
+.pearl-dot {
+  display: inline-block; width: 15px; height: 15px; border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%, #fff 0 20%, #E9E2D6 45%, #B9B1A6 100%);
+}
+
+/* ------------------------------------------------------------ dive layout */
+#v-dive main { max-width: 1240px; margin: 0 auto; padding: 22px 20px 80px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 26px; align-items: start; }
+.log { position: sticky; top: 64px; max-height: calc(100vh - 76px); overflow-y: auto; padding: 2px 6px 12px 2px; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+.zone { color: var(--sky); font-weight: 700; margin: 0; }
+.log h1 { margin: 0 0 0.35em; font-size: 1.9rem; line-height: 1.15; color: var(--white); }
+.story { font-size: 1.05rem; max-width: 34em; }
+
+.code {
+  background: var(--abyss); border: 1px solid var(--line); border-radius: 12px; padding: 12px 0;
+  font-family: var(--mono); font-size: 0.92rem; line-height: 1.55; overflow-x: auto; margin: 14px 0;
+}
+.code .row { display: flex; white-space: pre; padding: 0 14px 0 0; min-width: max-content; }
+.code .ln { width: 2.6em; flex: none; text-align: right; padding-right: 0.9em; color: #5F7388; user-select: none; }
+.code.nonum .row { padding-left: 14px; }
+.t-type { color: var(--tok-type); font-weight: 700; }
+.t-id { color: var(--tok-id); font-weight: 700; }
+.t-val { color: var(--tok-val); font-weight: 700; }
+.t-com { color: var(--tok-com); }
+.code .row.slot { background: rgba(255, 121, 0, 0.1); box-shadow: inset 3px 0 0 var(--orange); }
+.code .ph { color: var(--citrus); font-style: italic; font-family: var(--font); }
+.code .slot-in { background: rgba(255, 121, 0, 0.16); border-bottom: 2px solid var(--orange); border-radius: 3px; padding: 0 0.3em; }
+
+.strip { display: flex; align-items: flex-end; gap: 4px; margin: 12px 0 4px; font-family: var(--mono); flex-wrap: wrap; }
+.strip .name { color: var(--tok-id); font-weight: 700; margin-right: 8px; padding-bottom: 20px; }
+.cell { text-align: center; }
+.cell b {
+  display: grid; place-items: center; min-width: 38px; height: 38px; border-radius: 8px; padding: 0 6px;
+  border: 1.5px solid var(--line-strong); background: rgba(3, 16, 31, 0.5); color: var(--tok-val);
+}
+.cell small { color: var(--muted); font-size: 0.75rem; }
+.cell.end b { border-style: dashed; color: var(--muted); font-weight: 400; font-size: 0.7rem; font-family: var(--font); }
+.cell.on b { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(255, 121, 0, 0.28); }
+.cell.on2 b { border-color: var(--sky); box-shadow: 0 0 0 3px rgba(138, 204, 228, 0.3); }
+
+.tiles { margin: 12px 0; }
+.tiles h3 { margin: 0 0 6px; font-size: 1rem; color: var(--white); }
+.tileset { display: flex; flex-wrap: wrap; gap: 8px; }
+.tile {
+  text-align: left; font-family: var(--mono); font-size: 0.84rem; line-height: 1.4; white-space: pre;
+  background: var(--abyss); border: 1.5px solid var(--line-strong); border-radius: 10px; padding: 6px 11px; color: var(--text);
+}
+.tile:hover:not(:disabled) { border-color: var(--sky); }
+.tile[aria-pressed="true"] { border-color: var(--orange); background: rgba(255, 121, 0, 0.14); }
+
+.help { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; color: var(--muted); font-size: 0.92rem; }
+.hint { background: rgba(237, 169, 65, 0.12); border-left: 3px solid var(--citrus); border-radius: 0 10px 10px 0; padding: 10px 14px; margin-top: 14px; }
+
+.debrief { background: var(--white); color: #222; border-radius: 16px; padding: 22px; margin-top: 16px; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35); }
+.debrief h2 { margin: 0 0 0.3em; color: var(--titan); font-size: 1.4rem; }
+.debrief code { background: #EEF2F6; color: var(--titan); border-radius: 5px; padding: 0.05em 0.35em; font-size: 0.93em; }
+.debrief .pearls { display: flex; gap: 8px; margin: 4px 0 14px; align-items: center; color: var(--titan); font-weight: 700; }
+.debrief .pearls .pearl-dot { width: 26px; height: 26px; box-shadow: 0 2px 6px rgba(0, 36, 78, 0.3); animation: pop 0.45s both; }
+.debrief .pearls .pearl-dot.no { background: none; border: 2px dashed #B8C2CC; box-shadow: none; animation: none; }
+.debrief .pearls .pearl-dot:nth-child(2) { animation-delay: 0.15s; }
+.debrief .pearls .pearl-dot:nth-child(3) { animation-delay: 0.3s; }
+.debrief .btn { margin-top: 14px; }
+@keyframes pop { from { transform: scale(0); } 70% { transform: scale(1.25); } to { transform: scale(1); } }
+
+/* ------------------------------------------------------------ the sea */
+.sea { position: relative; min-height: 60vh; padding-bottom: 30px; scroll-margin-top: 72px; }
+.boat {
+  position: relative; background: var(--white); color: var(--titan); border-radius: 14px 14px 14px 4px;
+  padding: 12px 16px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+.boat .where { font-weight: 700; display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.boat .where small { font-weight: 400; color: #4A5A6C; }
+.boat pre { margin: 6px 0 0; font-family: var(--mono); font-size: 0.9rem; white-space: pre-wrap; color: #222; }
+.boat .t-type { color: #2973B6; } .boat .t-id { color: #C9521F; } .boat .t-val { color: #38761D; }
+.boat .out { margin-top: 8px; font-weight: 700; color: var(--titan); }
+.boat .out b { font-family: var(--mono); background: var(--titan); color: var(--white); border-radius: 6px; padding: 0.1em 0.5em; }
+.tests { list-style: none; margin: 0; padding: 0; }
+.tests li { padding: 8px 0; border-top: 1px solid #DCE2E8; display: grid; grid-template-columns: 1.6em 1fr; gap: 4px; }
+.tests li:first-child { border-top: 0; padding-top: 2px; }
+.tests .mark { font-weight: 700; }
+.tests li.pass .mark { color: #38761D; } .tests li.fail .mark { color: #A32100; }
+.tests .want { color: #4A5A6C; font-size: 0.9rem; }
+.tests .want b { font-family: var(--mono); color: var(--titan); }
+.boat .go { margin-top: 10px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.tank { display: flex; gap: 3px; align-items: center; color: #4A5A6C; font-size: 0.85rem; }
+.tank i { width: 12px; height: 16px; border-radius: 3px; border: 1.5px solid var(--brill); }
+.tank i.used { background: var(--brill); }
+.tank.over i { border-color: #A32100; background: #A32100; }
+
+/* The dive line: frames hang off it, numbered by depth. */
+.frames { list-style: none; margin: 0 0 0 20px; padding: 16px 0 0 26px; border-left: 2px dashed var(--line-strong); }
+.frame {
+  position: relative; margin: 0 0 12px; padding: 10px 14px; border-radius: 12px;
+  background: var(--panel); border: 1.5px solid var(--line);
+}
+.frame::before {
+  content: attr(data-depth); position: absolute; left: -41px; top: 10px; width: 28px; height: 28px; border-radius: 50%;
+  display: grid; place-items: center; font-family: var(--mono); font-size: 0.8rem; font-weight: 700;
+  background: var(--titan); border: 2px solid var(--line-strong); color: var(--sky);
+}
+.frame .call { font-family: var(--mono); font-weight: 700; color: var(--white); overflow-wrap: anywhere; }
+.frame .status { color: var(--muted); font-size: 0.9rem; }
+.frame .status b { font-family: var(--mono); color: var(--green); }
+.frame.active { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(255, 121, 0, 0.18); }
+.frame.active::before { border-color: var(--orange); color: var(--white); }
+.frame.done { opacity: 0.72; }
+.frame.done .call { color: var(--muted); }
+.frame.enter { animation: sink 0.35s ease-out both; }
+.frame.crash { border-color: var(--red); background: rgba(90, 14, 6, 0.6); }
+.frame.crash .call { color: var(--red); }
+.frame.crash pre { margin: 6px 0 0; font-family: var(--mono); font-size: 0.82rem; white-space: pre-wrap; color: #FFD9D2; }
+@keyframes sink { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
+.floor {
+  margin: 4px 0 0 20px; padding: 10px 16px; border-radius: 4px 4px 14px 14px; color: var(--titan); font-weight: 700;
+  background: linear-gradient(#EDA941, #C98A2B); display: flex; gap: 10px; align-items: center;
+}
+.floor span { font-size: 1.5rem; }
+
+.ask { margin-top: 10px; }
+.ask .q { font-weight: 700; margin: 0 0 8px; }
+.ask .opt { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0; }
+.ask .or { color: var(--muted); font-size: 0.9rem; margin: 2px 0; }
+.ask input {
+  width: 4.2em; text-align: center; font-family: var(--mono); font-weight: 700; padding: 0.4em 0.3em;
+  border-radius: 8px; border: 2px solid var(--sky); background: var(--abyss); color: var(--white);
+}
+.ask input.wide { width: min(100%, 15em); text-align: left; padding-left: 0.7em; }
+.say { min-height: 1.5em; margin: 8px 0 0; color: var(--red); font-weight: 700; }
+.say.good { color: var(--green); }
+.shake { animation: shake 0.4s ease; }
+@keyframes shake { 20%, 60% { transform: translateX(-7px); } 40%, 80% { transform: translateX(7px); } }
+.verdict { margin: 4px 0 0 20px; padding: 12px 16px; border-radius: 12px; font-weight: 700; background: var(--panel); border: 1.5px solid var(--line-strong); }
+.verdict.bad { border-color: var(--red); }
+.verdict.good { border-color: var(--green); color: var(--green); }
+.verdict b { font-family: var(--mono); }
+
+.terminal { margin: 16px 0 0 20px; background: #000; border: 1px solid var(--line-strong); border-radius: 12px; padding: 14px 16px; }
+.terminal .done-line { font-family: var(--mono); color: var(--green); }
+
+/* Call tree: each node sits above its two calls. */
+.treewrap { margin-top: 18px; overflow-x: auto; padding-bottom: 8px; }
+.tree { display: flex; width: max-content; margin: 0 auto; }
+.tnode { display: flex; flex-direction: column; align-items: center; flex: none; }
+.tbox {
+  background: var(--panel); border: 1.5px solid var(--line); border-radius: 10px; padding: 6px 8px; text-align: center; min-width: 66px;
+}
+.tbox .call { font-family: var(--mono); font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
+.tbox form { display: flex; gap: 3px; justify-content: center; margin-top: 4px; }
+.tbox input { width: 2.1em; text-align: center; font-family: var(--mono); font-weight: 700; padding: 0.2em; border-radius: 6px; border: 2px solid var(--sky); background: var(--abyss); color: var(--white); }
+.tbox button { border: 0; border-radius: 6px; background: var(--orange); color: var(--titan); font-weight: 700; padding: 0 0.45em; }
+.tbox .ret { font-family: var(--mono); font-weight: 700; color: var(--green); margin-top: 2px; }
+.tbox .wait { color: var(--muted); font-size: 0.75rem; margin-top: 2px; }
+.tbox.open { border-color: var(--orange); }
+.tbox.solved { opacity: 0.8; }
+/* Connectors: a stub down from the parent, a bar across, a stub down to each call. */
+.tkids { display: flex; position: relative; padding-top: 14px; }
+.tkids::before { content: ''; position: absolute; left: 50%; top: 0; height: 14px; border-left: 2px solid var(--line-strong); }
+.tkids > .tnode { position: relative; padding: 14px 4px 0; }
+.tkids > .tnode::before { content: ''; position: absolute; top: 0; left: 0; right: 0; border-top: 2px solid var(--line-strong); }
+.tkids > .tnode:first-child::before { left: 50%; }
+.tkids > .tnode:last-child::before { right: 50%; }
+.tkids > .tnode::after { content: ''; position: absolute; top: 0; left: 50%; height: 14px; border-left: 2px solid var(--line-strong); }
+
+/* Out of air */
+.rest { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 20px; background: rgba(41, 115, 182, 0.93); }
+.rest div { max-width: 30em; background: var(--white); color: #222; border-radius: 18px; padding: 26px; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4); }
+.rest h2 { margin: 0 0 0.3em; color: var(--titan); }
+.rest code { background: #EEF2F6; color: var(--titan); border-radius: 5px; padding: 0.05em 0.35em; }
+.rest .count { font-family: var(--mono); font-weight: 700; color: var(--titan); font-size: 1.2rem; margin-top: 12px; }
+
+/* ------------------------------------------------------------ surfaced */
+#v-done main, #v-coral main { max-width: 900px; margin: 0 auto; padding: 6vh 20px 80px; }
+.done-title { font-size: clamp(2.4rem, 7vw, 4.4rem); line-height: 1; margin: 0 0 0.3em; color: var(--white); }
+.haul { display: flex; flex-wrap: wrap; gap: 10px 40px; margin: 22px 0; }
+.haul div b { display: block; font-size: 2.4rem; line-height: 1.1; font-family: var(--mono); color: var(--white); }
+.haul div span { color: var(--sky); }
+.nexts { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px; }
+.coral-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 24px; align-items: start; margin-top: 18px; }
+canvas#coral { width: 100%; aspect-ratio: 4 / 3; border-radius: 14px; background: linear-gradient(var(--titan), var(--abyss)); border: 1px solid var(--line); }
+.sliders label { display: grid; grid-template-columns: 6.5em 1fr 3em; gap: 10px; align-items: center; margin: 10px 0; font-weight: 700; }
+.sliders input { accent-color: var(--orange); width: 100%; }
+.sliders output { font-family: var(--mono); text-align: right; }
+
+.log.flow { position: static; max-height: none; overflow: visible; }
+
+@media (max-width: 860px) {
+  .hero { grid-template-columns: 1fr; gap: 0; }
+  /* On a phone the roster comes right after the pitch, the rules after it. */
+  .hero > div:first-child { display: contents; }
+  .wordmark { order: 1; margin-bottom: 0.8em; }
+  .pitch { order: 2; margin-bottom: 1.2em; }
+  .join { order: 3; }
+  .rules { order: 4; }
+  #v-dive main { grid-template-columns: 1fr; padding: 16px 14px 70px; }
+  .log { position: static; max-height: none; overflow: visible; }
+  .coral-grid { grid-template-columns: 1fr; }
+  .bar { gap: 10px; padding: 8px 12px; flex-wrap: wrap; }
+  .bar .who { max-width: 8em; }
+  .code { font-size: 0.82rem; }
+  .stat small { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div id="v-start" hidden>
+  <div class="hero">
+    <div>
+      <h1 class="wordmark" aria-label="Stack Dive" id="wordmark"></h1>
+      <p class="pitch">Recursion practice for pairs. Every call takes you one level deeper. The base case is the sea floor.</p>
+      <ul class="rules">
+        <li><b>Follow each call down</b> to the base case, then carry the answers back up to the boat.</li>
+        <li><b>A wrong answer costs a breath.</b> Three wrong on one dive and you rest at the surface with a hint.</li>
+        <li><b>Each dive pays up to 3 pearls.</b> A clean dive pays all three.</li>
+      </ul>
+    </div>
+    <div class="join">
+      <div class="resume" id="resume" hidden>
+        <h2>Welcome back, <span id="resume-team"></span></h2>
+        <p>Your dive log is saved on this device. You were on <span id="resume-where"></span>.</p>
+        <button class="btn" id="resume-go">Keep diving</button>
+      </div>
+      <form id="join-form" autocomplete="off">
+        <h2 id="join-title">Sign the dive roster</h2>
+        <p>One device per pair. Both names go on today's attendance.</p>
+        <label for="f-team">Team name</label>
+        <input id="f-team" maxlength="24" placeholder="The Base Cases" required>
+        <label for="f-p1">Diver 1, first and last name</label>
+        <input id="f-p1" maxlength="40" required>
+        <label for="f-p2">Diver 2, first and last name</label>
+        <input id="f-p2" maxlength="40">
+        <div id="p3-wrap" hidden>
+          <label for="f-p3">Diver 3, first and last name</label>
+          <input id="f-p3" maxlength="40">
+        </div>
+        <button type="button" class="linkish" id="add-p3">Add a third diver</button>
+        <p class="err" id="join-err" role="alert"></p>
+        <button class="btn" type="submit">Start diving</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div id="v-dive" hidden>
+  <header class="bar">
+    <span class="who" id="bar-team"></span>
+    <div class="pips" id="pips" aria-label="Dives"></div>
+    <span class="stat" title="Air left on this dive"><span class="air" id="air"></span><small>air</small></span>
+    <span class="stat" title="Pearls"><span class="pearl-dot"></span><span id="bar-pearls">0</span></span>
+    <span class="stat mono" id="clock">0:00</span>
+  </header>
+  <main>
+    <section class="log" id="log"></section>
+    <section class="sea" id="sea"></section>
+  </main>
+</div>
+
+<div id="v-done" hidden>
+  <main id="done"></main>
+</div>
+
+<div id="v-coral" hidden>
+  <main>
+    <h1 class="done-title">Grow a coral</h1>
+    <p class="story">The treasure at the bottom: a drawing made by one function that calls itself. Every branch is a call. Move the sliders and watch the number of calls.</p>
+    <div class="coral-grid">
+      <canvas id="coral" width="800" height="600" aria-label="A coral drawn by a recursive function"></canvas>
+      <div>
+        <div id="coral-code"></div>
+        <div class="sliders">
+          <label>Depth <input type="range" id="c-depth" min="0" max="10" value="6"><output id="o-depth"></output></label>
+          <label>Branches <input type="range" id="c-kids" min="1" max="3" value="2"><output id="o-kids"></output></label>
+          <label>Spread <input type="range" id="c-spread" min="8" max="60" value="24"><output id="o-spread"></output></label>
+          <label>Shrink <input type="range" id="c-shrink" min="50" max="82" value="72"><output id="o-shrink"></output></label>
+        </div>
+        <p class="story"><b id="coral-calls"></b></p>
+        <div class="nexts"><button class="btn quiet" id="coral-back">Back to the boat</button></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="rest" id="rest" hidden role="alertdialog" aria-labelledby="rest-title">
+  <div>
+    <h2 id="rest-title">Out of air</h2>
+    <p>Back to the surface for a breather. Read this while you wait:</p>
+    <p id="rest-hint"></p>
+    <p class="count">Diving again in <span id="rest-count"></span></p>
+  </div>
+</div>
+
+<script>
+'use strict';
+// Shared by the page and the build script: hashing, sealing, and answer
+// normalizing. The page never holds an answer in plain text. Each answer is
+// checked against a salted hash, and each debrief card is sealed with a key
+// made from that dive's answers, so it only opens for a pair that solved it.
+const SALT = 'stackdive22';
+
+// Plain SHA-256, so checks work on file:// and on phones without crypto.subtle.
+function sha256(text) {
+  const frac = (x) => ((x - Math.floor(x)) * 0x100000000) >>> 0;
+  const H = [], K = [];
+  for (let n = 2; K.length < 64; n++) {
+    let prime = true;
+    for (let d = 2; d * d <= n; d++) if (n % d === 0) { prime = false; break; }
+    if (!prime) continue;
+    if (H.length < 8) H.push(frac(Math.sqrt(n)));
+    K.push(frac(Math.cbrt(n)));
+  }
+  const msg = Array.from(new TextEncoder().encode(text));
+  const bitLen = msg.length * 8;
+  msg.push(0x80);
+  while (msg.length % 64 !== 56) msg.push(0);
+  for (let s = 56; s >= 0; s -= 8) msg.push(s >= 32 ? 0 : (bitLen >>> s) & 255);
+  const rotr = (x, n) => (x >>> n) | (x << (32 - n));
+  const W = new Array(64);
+  for (let i = 0; i < msg.length; i += 64) {
+    for (let t = 0; t < 16; t++) {
+      W[t] = (msg[i + 4 * t] << 24) | (msg[i + 4 * t + 1] << 16) | (msg[i + 4 * t + 2] << 8) | msg[i + 4 * t + 3];
+    }
+    for (let t = 16; t < 64; t++) {
+      const s0 = rotr(W[t - 15], 7) ^ rotr(W[t - 15], 18) ^ (W[t - 15] >>> 3);
+      const s1 = rotr(W[t - 2], 17) ^ rotr(W[t - 2], 19) ^ (W[t - 2] >>> 10);
+      W[t] = (W[t - 16] + s0 + W[t - 7] + s1) | 0;
+    }
+    let [a, b, c, d, e, f, g, h] = H;
+    for (let t = 0; t < 64; t++) {
+      const t1 = (h + (rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25)) + ((e & f) ^ (~e & g)) + K[t] + W[t]) | 0;
+      const t2 = ((rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+      h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+    }
+    [a, b, c, d, e, f, g, h].forEach((v, j) => { H[j] = (H[j] + v) | 0; });
+  }
+  return H.map((x) => (x >>> 0).toString(16).padStart(8, '0')).join('');
+}
+
+// What a typed answer is compared as: no spaces, lower case.
+function norm(raw) {
+  let s = String(raw == null ? '' : raw).toLowerCase().replace(/\s+/g, '').replace(/^"+|"+$/g, '');
+  if (/^[+-]?\d+$/.test(s)) s = String(parseInt(s, 10));
+  return s;
+}
+
+// The stored hash for answer `ans` at step `step` of dive `id`.
+function stepHash(id, step, ans) {
+  return sha256(`${SALT}:${id}:${step}:${norm(ans)}`).slice(0, 20);
+}
+
+// The key that opens a dive's debrief: every answer, in order.
+function debriefKey(id, answers) {
+  return sha256(`${SALT}:${id}:debrief:${answers.map(norm).join('\u0001')}`);
+}
+
+function keystream(key, length) {
+  const out = [];
+  for (let n = 0; out.length < length; n++) {
+    const block = sha256(`${key}#${n}`);
+    for (let i = 0; i < block.length && out.length < length; i += 2) out.push(parseInt(block.slice(i, i + 2), 16));
+  }
+  return out;
+}
+
+function seal(plain, key) {
+  const bytes = Array.from(new TextEncoder().encode('OK:' + plain));
+  const ks = keystream(key, bytes.length);
+  return bytes.map((b, i) => (b ^ ks[i]).toString(16).padStart(2, '0')).join('');
+}
+
+// Returns the plain text, or null when the key is wrong.
+function unseal(hex, key) {
+  const bytes = [];
+  for (let i = 0; i < hex.length; i += 2) bytes.push(parseInt(hex.slice(i, i + 2), 16));
+  const ks = keystream(key, bytes.length);
+  let text;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(bytes.map((b, i) => b ^ ks[i])));
+  } catch (e) {
+    return null;
+  }
+  return text.startsWith('OK:') ? text.slice(3) : null;
+}
+
+
+
+// What each tile does when a build dive runs. The page runs whatever the pair
+// assembled, so nothing here says which tiles are right: a dive passes when
+// it surfaces with the value the dive card asks for.
+const TANK = 8;  // frames of air: one more call than this is a stack overflow
+
+function at(seq, i, kind) {
+  if (!Number.isInteger(i) || i < 0 || i >= seq.length) throw { crash: 'range', kind };
+  return seq[i];
+}
+
+const IMPLS = {
+  product: {
+    label: (a) => `Product(nums, ${a.i})`,
+    run(sel, a, rec) {
+      const n = a.nums;
+      if (sel.A === 'p' && a.i === n.length) return 0;
+      if (sel.A === 'q' && a.i === n.length - 1) return 1;
+      if (sel.A === 'r' && a.i === n.length) return 1;
+      if (sel.B === 'p') return rec({ nums: n, i: a.i + 1 });
+      if (sel.B === 'q') return at(n, a.i, 'vector') * rec({ nums: n, i: a.i + 1 });
+      return at(n, a.i, 'vector') * rec({ nums: n, i: a.i });
+    },
+  },
+  stops: {
+    label: (a) => `CountStops(${a.depth})`,
+    run(sel, a, rec) {
+      const d = a.depth;
+      if (sel.A === 'p' && d === 0) return 0;
+      if (sel.A === 'q' && d >= 0) return 0;
+      if (sel.A === 'r' && d === 5) return 0;
+      if (sel.A === 's' && d <= 0) return 0;
+      return 1 + rec({ depth: d - 10 });
+    },
+  },
+  palindrome: {
+    label: (a) => `IsPalindrome(word, ${a.left}, ${a.right})`,
+    run(sel, a, rec) {
+      const w = a.word;
+      if (sel.A === 'p' && a.left === a.right) return true;
+      if (sel.A === 'q' && a.left >= a.right) return false;
+      if (sel.A === 'r' && a.left >= a.right) return true;
+      if (at(w, a.left, 'basic_string') !== at(w, a.right, 'basic_string')) return false;
+      if (sel.B === 'p') return rec({ word: w, left: a.left + 1, right: a.right });
+      if (sel.B === 'q') return rec({ word: w, left: a.left, right: a.right });
+      return rec({ word: w, left: a.left + 1, right: a.right - 1 });
+    },
+  },
+  reverse: {
+    label: (a) => `Reverse(word, ${a.i})`,
+    run(sel, a, rec) {
+      const w = a.word;
+      if (sel.A === 'p' && a.i === w.length) return w;
+      if (sel.A === 'q' && a.i === w.length) return '';
+      if (sel.A === 'r' && a.i === w.length - 1) return '';
+      if (sel.B === 'p') return at(w, a.i, 'basic_string') + rec({ word: w, i: a.i + 1 });
+      if (sel.B === 'q') return rec({ word: w, i: a.i + 1 });
+      return rec({ word: w, i: a.i + 1 }) + at(w, a.i, 'basic_string');
+    },
+  },
+};
+
+// Runs one dive and returns what happened, call by call.
+//   events: {t:'call', depth, label} | {t:'ret', depth, value}
+//   end:    {kind:'value', value} | {kind:'overflow'} | {kind:'range', what}
+function runDive(id, sel, args) {
+  const impl = IMPLS[id];
+  const events = [];
+  function rec(a, depth) {
+    events.push({ t: 'call', depth, label: impl.label(a) });
+    if (depth > TANK) throw { crash: 'overflow' };
+    const value = impl.run(sel, a, (next) => rec(next, depth + 1));
+    events.push({ t: 'ret', depth, value });
+    return value;
+  }
+  try {
+    return { events, end: { kind: 'value', value: rec(args, 1) } };
+  } catch (e) {
+    if (e && e.crash === 'overflow') return { events, end: { kind: 'overflow' } };
+    if (e && e.crash === 'range') return { events, end: { kind: 'range', what: e.kind } };
+    throw e;
+  }
+}
+
+
+
+const LEVELS = [{"id":"power","kind":"trace","zone":"The shallows","title":"Checkout dive","story":"Every call is one level deeper. Follow \u003ccode>Power(2, 3)\u003c/code> all the way down, then carry the answers back up to the boat.","ids":["Power","base","exp"],"code":"int Power(int base, int exp) {\n  if (exp == 0) {\n    return 1;\n  }\n  return base * Power(base, exp - 1);\n}","hint":"Each call hands the next one \u003ccode>exp - 1\u003c/code>. The sea floor is the call where \u003ccode>exp == 0\u003c/code> is true: that call returns 1 without calling anyone.","bonus":false,"main":["std::cout \u003c\u003c Power(2, 3);"],"call":"Power(2, {x})","first":"3","param":"exp","hashes":["9f6c7b6eea89a40191c3","f18ecc0c816b46a4f281","168721ce358b694c6e46","e4aa8b7ff0fbfacb8269","06c383ab92075f1672f6","609a93a87d7afa8e2446","d1d3d76d4d56fb0af177","fa45e9db76366f798703"],"sealed":"534e0ba81172277a8c3f6d1bf2194a78494cb413a46303a444a3841acfdcca4ebb53243bcce5b807ee903c2ecb75970d11dc59c707cd8a0f547b365903b3c5971a704f81aee97b8468183bd0c62a96d39da5797909db1c7c6b4e2149e00ae712dbce20427e4f0380a1fdd852449031616262182a24ea12e62675b26945ab2b2db389428e83988e79539c4707bbc1a1ec359a7ae333d020b2c2ad34bb8b662501210fad1e07b3baf0158908a333cff4484a8bbf936d9e3b7fc6a198f1ea64888ae013a67a03d775e04e420fd2230d6bd613fa66f3089071467d9831fd9d33583ba867600651dce41768fefb09c4a0d42c366e57bfc38a35b9683e509e7ea79c5669ab5c62d24ba14ee08b2222bee48078d6f1e271d4fb8928dd85daca3fff5a8018f70c12f328d1b198e272686347ab082ccac4d60cda4f682cb20ccfff8885a4f74a9d40962fc63a7872caacb56a90805dcc13a55fcdd1e21c2ac2e63309c01b5693451096515d1301bc2255"},{"id":"sum","kind":"trace","zone":"The shallows","title":"Three sunken chests","story":"New trick: a recursive function can walk a vector. The extra parameter \u003ccode>i\u003c/code> says which chest this call is standing on.","ids":["SumFrom","coins","i"],"code":"int SumFrom(const std::vector\u003cint>& coins, int i) {\n  if (i == coins.size()) {\n    return 0;\n  }\n  return coins.at(i) + SumFrom(coins, i + 1);\n}","hint":"The vector has chests at 0, 1, and 2. The base case is \u003ccode>i == coins.size()\u003c/code>, and the size is 3, so the dive goes one step past the last chest. That call has no chest to add: it returns 0.","bonus":false,"main":["std::vector\u003cint> coins{5, 2, 8};","std::cout \u003c\u003c SumFrom(coins, 0);"],"strip":{"name":"coins","cells":["5","2","8"]},"call":"SumFrom(coins, {x})","first":"0","param":"i","hashes":["77e94083d7edb69bd21b","17b4170a16f4b594892c","845eadb0ed1f60580de5","c071a6a06089fda272c0","d60e19ba013dbb79ba60","edb3d43156c862260790","1ac4cc411820e22b653f","220a6a0affc14dd3a30a"],"sealed":"5b076cfc4a27eae03852c82a648587485ea5f7dabd6e3ed79e7b5d94d1a14246240ff68a8e130d6ddc733d8ee7d62164bf5a187851c632e01ed7a8dd653df7b0f3353d13f43dc9044902fb670b3ea99175a00306fe86622f498ccd39766a361e5eb32e141eead2e802e5ccd88f87f6167a6e6f0e47c3f34fc10695dc9d1fedda9723188d476a581b64b14de4f8777202407ca29dd33c497ad830d70a48db5cbda54d89a07a36e56d8d9a67cd4bec43326dda0b0101c6fddc06fcdf65fef76cf0fd3eabcd1f127f69ab655107aaaa266f9a1f4f05fc19269e9bf198fdf9b9d4a6903708149d55c9bfe0ee9ad766e7055abd62464329159116bbe18b6aaf7e951e8734fe6a3bc9caa366b952a0dcf99bf041d2c6630560812e628e9b8f5b5bdffec375a2406e3fc368007d4812c63d6c76717282a62c0dffe00c127dbe9fc3af4d71321f9be84ccb22c450d4014125f08ec50fcaa06ccc26b71a3b1d49455cc3a3feccc6065ec64a986dc10b731b086e8945f9a943d00b152316d1203f6df13d0122dab02749793b972b1dcdde2a0046b55e46fd95d8dc5d57a8544588bedf21355ce64fd3644b619a5933cbbec14b877db486ee62eebb0e"},{"id":"count","kind":"trace","zone":"The shallows","title":"Not every frame adds","story":"This one dives on its own. Your job is the way up: what does each frame return? Watch which \u003ccode>return\u003c/code> line each frame is paused on.","ids":["CountE","word","i"],"code":"int CountE(const std::string& word, int i) {\n  if (i == word.size()) {\n    return 0;\n  }\n  if (word.at(i) == 'e') {\n    return 1 + CountE(word, i + 1);\n  }\n  return CountE(word, i + 1);\n}","hint":"A frame standing on an \u003ccode>e\u003c/code> returns 1 plus what came back. A frame standing on any other letter passes what came back straight up, unchanged.","bonus":false,"main":["std::string word = \"reef\";","std::cout \u003c\u003c CountE(word, 0);"],"strip":{"name":"word","cells":["r","e","e","f"]},"call":"CountE(word, {x})","first":"0","param":"i","autoDown":["1","2","3","4"],"hashes":["46ef85e56eb187cb10e0","26af5bdb7c0178f05907","210c8ec198a71b6226ab","6f2d2eddc639823aa9d3","9513b5cf0f030aed159b"],"sealed":"03e090f79cb95f5eb894aa93d82a64e2f8c5544a77f5dccd9b75f48ec52987276914f60c4fb1bae0fc24bf46dc7a423438bfddfac8b9651ad090f0991461cf7ba91c14486e46842e40f0b49bb8e5fa4b90749bd9414b2bd86362c78ee58b84ea1fe5278261a8d85548637477081ef5001d5eef4adaad2f5f39e19d81e1e2fb399359e34a340d4ac2cf5569d92cc7d702ccd3d882c192f5665460e4f57b9ad7930ef5063bf5ff9004ad61fb860b08a015aa694b734786b6a9ed3af7c46b98627a4eb58898b05b603d0a5a21ed75517c80af2db9dff37ad02edda6d7ad9b272bafcc5e4b1913c4f6aa53b6094ae3485273995e4203f79d4e694af3f5224bf45486e1ccfeb644a47cc1b14e890b0b52808759e069014508bdfcc2cac48e6076e8ee17854a8aec60a60bbcf912afc2cdb3d6671854b6c4daa14a9b0df6d3dde8ab0063e9df1b575ac4c64279aaa857fb1f4297b99759e1f05615b3c5c171171a19036193fd7276b8279bfddd3471eacf"},{"id":"product","kind":"build","zone":"The reef","title":"Build it: Product","story":"Your turn to write one. \u003ccode>Product\u003c/code> should multiply every number from index \u003ccode>i\u003c/code> to the end. Pick a base case and a recursive case, then dive to test it.","ids":["Product","nums","i"],"code":"int Product(const std::vector\u003cint>& nums, int i) {\n  {{A}}\n  {{B}}\n}","hint":"Ask Tuesday's three questions. Smallest version: no numbers left. What should \"the product of no numbers\" be so that multiplying by it changes nothing? One step smaller: \u003ccode>i + 1\u003c/code>. And the answer that comes back has to be used.","bonus":false,"strip":{"name":"nums","cells":["2","3","4"]},"blanks":[{"id":"A","name":"Base case","tiles":[{"id":"p","code":"if (i == nums.size()) {\n  return 0;\n}"},{"id":"q","code":"if (i == nums.size() - 1) {\n  return 1;\n}"},{"id":"r","code":"if (i == nums.size()) {\n  return 1;\n}"}]},{"id":"B","name":"Recursive case","tiles":[{"id":"p","code":"return Product(nums, i + 1);"},{"id":"q","code":"return nums.at(i) * Product(nums, i + 1);"},{"id":"r","code":"return nums.at(i) * Product(nums, i);"}]}],"tests":[{"main":["std::vector\u003cint> nums{2, 3, 4};","std::cout \u003c\u003c Product(nums, 0);"],"args":{"nums":[2,3,4],"i":0},"want":24}],"sealed":"e0b0e5a400d3f4fabce273e9cf14f3cbb96f3dadd8c7cb9d96a6eba5acea3e719ad9659fde81cee8555534544c9fbccfcf7d8c9b5b0249ba17400f9b41044426f07c305cb183d9e73e6e99d083ce23c4a816a3cf9027f6646357202080785da0583b2b4b30e4bfbeba1663bd597d7e0e1c4b435914d0b09dd2efe92aad4abcfb10d41ea2a56afe17a9321edf63756530a49bbb2f9b4cbd7ee4328b8762b7d213b94c12fceee5e346aca955e1a5560821a369ede21cc7f8423114ba768657e85c42b5f4ee61654e224a691daf0879f65af3179c89c53751b829707316530c6e15f408f6ef11c3a467d2deed36e012466366828550d02d361b1aa77b93ae6e1ff7b022b657d13dd700f0593bc0944edab33ea036f90caf55f90a835d521f35763d9fd0d470a4245fc54a29e7f42de921484d8bc182ae5d02f23542a51fc6b58618dae310108388fa1d9f446789ad2e2a8eeb97e0a8ef19533a1bab31c3cfb86b3c40bf725fbf9404907dcae06d5e9c4a3dd7fa1bfeff913a3df37b4d6c1adddc60411c9c632ee2b1ab290901c3cf3737ffb228e5b0aae20701669be8ff5351c6320d0b8ab841a35fb63c5d93f680946a499748808dfffd314570c624be1dde2874eac84397a930061f1b83148146ad5b13362a8bea03ed1a0ed96ab09d99319a5f0a8cf84dba0880a9043e567222ab3582b30c1d2bb555a0dcf4811120746734f6aa5b32054c4def02b3fe56ba13d1a3"},{"id":"stops","kind":"build","zone":"The reef","title":"It worked from 30 meters","story":"A diver comes up 10 meters per hop, and \u003ccode>CountStops\u003c/code> counts the hops until the diver is out of the water. From 30 meters it says 3. Then somebody dove to 25. Run it as written, then fix the base case.","ids":["CountStops","depth"],"code":"int CountStops(int depth) {\n  if ({{A}}) {\n    return 0;\n  }\n  return 1 + CountStops(depth - 10);\n}","hint":"From 25 the depths go 25, 15, 5, then -5. The call never lands exactly on 0, so \u003ccode>depth == 0\u003c/code> is never true. Which condition is true at 0 and also at anything past it?","bonus":false,"blanks":[{"id":"A","name":"Base case condition","inline":true,"tiles":[{"id":"p","code":"depth == 0","given":true},{"id":"q","code":"depth >= 0"},{"id":"r","code":"depth == 5"},{"id":"s","code":"depth \u003c= 0"}]}],"tests":[{"main":["std::cout \u003c\u003c CountStops(30);"],"args":{"depth":30},"want":3},{"main":["std::cout \u003c\u003c CountStops(25);"],"args":{"depth":25},"want":3}],"sealed":"b95eb34b617344b385ea1becc168d618ca37001c9995741eac5bd2927109d12f09461a0bf3b40b81788d55cdee364015a4505627c66b85fb9d959972594bb4b0c01fe2c2f00e754adf122c3cd1ad9359e6faecda578ed1f73af2ba61ad9617fddf7c1e45e3aa9b72b73579cf8e4b419444537ec22dd01d9ad2121b8f251694d01be1cb8501178875b355810ca06fb2b5f8290aba1ec6670910deeeddce7cc32f862de9199dfe45e5b5a319f41fbe333168cc9eab5ee5a8697e78c1adf2b4544e8b95f985fd1569d2fad93e5b6aae622f279b553762f3ad52ec84b81b874797189d2fe960c23eb7235dddd53feacf1ced824a9a3eddd9d7cdd6efc9a29c21d630db83624c66c63fc4fb075e774a08c22aaf1dfde801e0358ddf8f5a65d0acb4ce67dbbc82a459e4997a167fba0bcc557869e7a4ae121d73d6f1a9f3e359fc0d06707b285410243c24a3258dcc67a8d4f7a0c05197b2cee80c86dbd90452c8b14b09772a8955fabca06c94cbeb0107694637a582f83e23832afa2886e1632912928ded45ec4422b61b6c9d1de29545158278f52db385e0fcd2bd5b0655219ee166340fae79dceb89b820b44e96f09a5564ca5f1fc10c4eb95b0fbf7d875ed21c48402aa8718ede5be9d36656003c8c75ba25297f8abad53d2411262f91285a6949d7020a3c025881d24c98a4d7f96f0eea5fc7d615e7b6939c98fb817b3877ed48cd2a6293b1fee303db0078e4b4a1"},{"id":"palindrome","kind":"build","zone":"The reef","title":"Build it: IsPalindrome","story":"A palindrome reads the same in both directions. Two fingers start at the ends of the word and walk toward the middle. The middle \u003ccode>if\u003c/code> is done for you. It has to pass all three words.","ids":["IsPalindrome","word","left","right"],"code":"bool IsPalindrome(const std::string& word, int left, int right) {\n  {{A}}\n  if (word.at(left) != word.at(right)) {\n    return false;\n  }\n  {{B}}\n}","hint":"In \"racecar\" the two fingers meet on the middle \u003ccode>e\u003c/code>. In \"noon\" there is no middle letter: the fingers pass each other, going from (1, 2) to (2, 1). The base case has to catch both.","bonus":false,"blanks":[{"id":"A","name":"Base case","tiles":[{"id":"p","code":"if (left == right) {\n  return true;\n}"},{"id":"q","code":"if (left >= right) {\n  return false;\n}"},{"id":"r","code":"if (left >= right) {\n  return true;\n}"}]},{"id":"B","name":"Recursive case","tiles":[{"id":"p","code":"return IsPalindrome(word, left + 1, right);"},{"id":"q","code":"return IsPalindrome(word, left, right);"},{"id":"r","code":"return IsPalindrome(word, left + 1, right - 1);"}]}],"tests":[{"main":["std::string word = \"racecar\";","std::cout \u003c\u003c IsPalindrome(word, 0, 6);"],"args":{"word":"racecar","left":0,"right":6},"want":true,"strip":{"name":"word","cells":["r","a","c","e","c","a","r"]}},{"main":["std::string word = \"noon\";","std::cout \u003c\u003c IsPalindrome(word, 0, 3);"],"args":{"word":"noon","left":0,"right":3},"want":true,"strip":{"name":"word","cells":["n","o","o","n"]}},{"main":["std::string word = \"sails\";","std::cout \u003c\u003c IsPalindrome(word, 0, 4);"],"args":{"word":"sails","left":0,"right":4},"want":false,"strip":{"name":"word","cells":["s","a","i","l","s"]}}],"sealed":"0a2bb9777559d592fa98545f245f7db302efefdbd0b440ef4962410943246648059ec4f2ba6ffc6cbbbdd10f3ec49ee00ae761b38825c3199d5494ef6921e15d8b81f8827826a136bb09d573b56c0b92c46a00b413e823d34b27fbbd5dcb4a6d8d55efaf903f41c557d2562be0e23b36dcc98806436b8568154b3a60733acc2aa4efbce74a183aa1b38b5a06749dd4a3032a672dcc60160a21d420335d2c52075bab952021913193ffc72c5bb093619cfb08fe69d1dda37fc0343b3703fe78be39a9ace6b1624a88e662ffe5996cce0566635b8bd10c0beb5d6945265f8fbe4f711594bf044c54cd1346a324efb6ca14de6c016254960f63505a549be290c6cf5aff68a892e01964b0c7588cbd589e0167b226e0a5ce43d3e801ab591d4163bcb3613c4c6627d279d86a1b9a30e376c3e0ab1a7c0c1dfcee9f2d7e1af90ea3556eb697e228454c04d5fa800d335b22f82b56686283e922224474437676641c4c9d29f7c9f31e61cbfd473c2a0206282f96a26650cb77298f7ab5a2b5759b20e7cbb79e44ec260b35cdf5814c5fb35f2662f79631c0d45cfe34d1b13b8823e0d9f3c8ac94c3064707d142643b98ac4b5b7bd9313800e28aa6a6b98eee31177eb294260d66cc80e00ec7a2853fc1e4fd0e46dfef22830afec7ac67fe0f243b2a5ecc83907749642913bdde777682af3083afa4f8dcdc41003a3d79566fbd3387e71ffe65809604746744ae2af4ee7fa8a41f5c04f3892fd58ea5cc778ab13d583e33652153b4e0ac31a545368ee70d9b74aa9c8383e0bee3c5a3555116b267ec1a68f73bbd3d92da928af76093ba6c4f4a55c55bae68cfe7102340c8fd02dbf2a353aa719ef2f72069c76e096b12a79f42b1db563e6627335677a081c4c1a98c025e88e58011c2fe2f2626f9d5a15b5bb7089b76625211e6dcc54c9a50a3055a5270033ce818d09e19f31a9a0f5b"},{"id":"echo","kind":"ask","zone":"The drop-off","title":"What prints?","story":"No values come back this time. \u003ccode>Echo\u003c/code> prints once on the way down and once on the way back up. Type everything it prints, exactly.","ids":["Echo","word","i"],"code":"void Echo(const std::string& word, int i) {\n  if (i == word.size()) {\n    std::cout \u003c\u003c \"|\";\n    return;\n  }\n  std::cout \u003c\u003c word.at(i);\n  Echo(word, i + 1);\n  std::cout \u003c\u003c word.at(i);\n}","hint":"Line 6 runs before the call on line 7, so it prints on the way down. Line 8 has to wait for the call on line 7 to finish, so it prints on the way back up, deepest frame first. The sea floor prints \u003ccode>|\u003c/code> once, in between.","bonus":false,"main":["std::string word = \"loop\";","Echo(word, 0);"],"strip":{"name":"word","cells":["l","o","o","p"]},"fields":[{"prompt":"The terminal shows","wide":true,"placeholder":"type the output"}],"hashes":["84dfbb4d3d9ba94528d8"],"sealed":"69fb3ca701d8df8de0ea73ce59605fe7e2f61ad25750ff1b2c329cf963a8fe972ce21788076b25ea0f71fb68234a0fbee89ab5bed8cb9b2dcb3aa28b4507b7dd0d057d8c7ebc1c8acdffc35ce17c20455f77e28183d610ea66d86570832bfa76b26864c3d771ff16e27d1e1c53b8b77dcd4d37cee8f154816b24d4e5def624d09d82b8001f8d3dbacfd637ab50b3a9e7c274a170e4dca5b632b9bb3150ec364fac3a8da53f4ea974e367c652346a9db5097a32c74ddb52d93475ce652a763c27d30e6268f7ab0d205dc5e364aced961c468ed0bf3b6ac5add13cdc8c6604e0b71d3ca755dcdbf9aab661def987007479a96a941ffad1c49c6431fc3729bddcbe5cacc0d92682fbcddb9a874a782378f5f379863143b1fddc687837482dbdf7292a1591ea773c1d75e62639c71cbd119ef87bbdd0b399bea8365b40641d50cd4a2878c94652b6f3b8689f6e186caec3bec3facf761620f97b58d4a7a4ecc5d06d6c640fe450a0b1a446858e0603863352e01f897cb15244d2ca6e757a6df0537aa1b247ed0c12dc17022ca29f37d9d06d42f18fedde414eddbc0ab8f8"},{"id":"fib","kind":"tree","zone":"The drop-off","title":"The dive forks","story":"This function calls itself \u003ci>twice\u003c/i>, so one dive splits into two, and each of those splits again. Start at the bottom: fill in what every call returns.","ids":["Fib","n"],"code":"int Fib(int n) {\n  if (n \u003c= 1) {\n    return n;\n  }\n  return Fib(n - 1) + Fib(n - 2);\n}","hint":"The calls at the very bottom hit the base case, \u003ccode>n &lt;= 1\u003c/code>, and return \u003ccode>n\u003c/code> itself: \u003ccode>Fib(1)\u003c/code> is 1 and \u003ccode>Fib(0)\u003c/code> is 0. Every other call adds the two answers directly below it.","bonus":false,"main":["std::cout \u003c\u003c Fib(4);"],"root":8,"nodes":[{"label":"Fib(1)","kids":[]},{"label":"Fib(0)","kids":[]},{"label":"Fib(2)","kids":[0,1]},{"label":"Fib(1)","kids":[]},{"label":"Fib(3)","kids":[2,3]},{"label":"Fib(1)","kids":[]},{"label":"Fib(0)","kids":[]},{"label":"Fib(2)","kids":[5,6]},{"label":"Fib(4)","kids":[4,7]}],"fields":[{"prompt":"Count the boxes. How many calls did \u003ccode>Fib(4)\u003c/code> take in total?","placeholder":"calls"}],"hashes":["a90c269006019da2c6e9","24ec69b5c23a4c80a574","3aab062aafe9fbbedaa3","ce3561b93bc75d6dc3b6","1136b4b6b68b1661d1c3","6401f143da6cf4be501a","7e6e6ce11f3cf069e7f5","61077ce1d860b964d31e","d502ca12910c0a1be354","bf3db01eed88677fde49"],"sealed":"c3528239963cf601d32415f24ba54e1776f44e3b5c14a256fd3772f9b3741c2eab5ae562a22f1adb307df1097bccb5f25fcaefa3709ee03b5bdffc2f6527778b01a5e370b0f5cee8269c3aaf887aa1720cce753ee22520fbe5432335844dda745e074f198b5b8547af6d6211e4715dd65ecee67471e2f56e6a4c21b32abd1bc2a22787806c7616406a695b38c3b348502b8ca8043f8a8190e0309f00067f7230d46d54648f133fa2271b1b8be1678f0dd32cb41603e7b069da8a552a5ded1e660b790774caafcfd273a39440abb478b558ffe455cdf317dd05950f27f530e57ed7d5ef2e07b7d4add4f38a5fbc2701a7b302ee4ae2cb93dbf397d1ca51fbce7b41f1911d92d1cb0dd82801dddcac4ade77ef0fb1721d193d43ebadc509ea23461e2e2917789dad3b1d02e41b61b5b19ad4c9ad34f3bed3a3717f057cd1a3fb91f794f8c643a6f79f2c9e1f9c37a2479e8c2c1d4774e6a2209a4ae87ced05f5a5a19e0977ffd60e9ed27eec626b9ac5373c7701dc40434fe80c8a27df589388781998d5dffde2bc935ab14925787ba44906da88898176ccb47311ba8a1e2e7109797e2d85cbcbc087e2c72525590325b371b7783b5de4571fd0139d4e2bcc6b0006c5cc94d005210b649871027816e83027f1752fd02345b278cea4cfae91e97af296f7c57346cf97c717d8b43c064eb9569073d12c7ccda9d1c73f4496233ae5ba6d268954338767776d245b45"},{"id":"halvings","kind":"ask","zone":"The trench","title":"Half as deep each time","story":"Bonus dive. This call does not count down by one: it cuts \u003ccode>n\u003c/code> in half. Careful: \u003ccode>n\u003c/code> is an \u003ccode>int\u003c/code>.","ids":["Halvings","n"],"code":"int Halvings(int n) {\n  if (n == 1) {\n    return 0;\n  }\n  return 1 + Halvings(n / 2);\n}","hint":"Write out the values of \u003ccode>n\u003c/code>: 40, 20, 10, 5, and then \u003ccode>5 / 2\u003c/code>. Both sides are type \u003ccode>int\u003c/code>, so the division throws away the remainder. Count the calls that are not the base case.","bonus":true,"main":["std::cout \u003c\u003c Halvings(40);"],"fields":[{"prompt":"\u003ccode>Halvings(40)\u003c/code> returns","placeholder":"value"},{"prompt":"Guess first, then work it out: \u003ccode>Halvings(1000)\u003c/code> returns","placeholder":"value"}],"hashes":["770999fddf0dd98e59a7","7a7c8460b35924dc939b"],"sealed":"c4b917fcf192b7d1bdf51b79b55a6a28ca6086c464e0dc9b10fd6df4d6b5e6764ad813c3f8b842e862ce850ee6cc5413a2218eef85c8f75ce59835fee6879874d328112b35395a9898ee496b63b39e29bcfc37154046edbb107cdb7a069d162997c181688efd0330145d8c33f3754f4daeb2442623cfd1c267a7e23695e2fd8376dda412361c981c518d119c3aea43e52e14af6ec33b39f4b560611486fd0ca8452f40c9f37d920dc7dafda9dc375b04096b0aabfb800820e9eb4e29b258098c8e05d33847c92effad7ae882f547c6324915b8b975d1c0542da1e465ebb12cbad9a177d2e622ef267fd250373e90215b924c8a06e1c6b81462ec02ff7fed06fa732acc8c4c5e93363124d5870b71989d5649647bc72b5d9d2b8a087b5a6c3162bed246fda821537dc00dbc582e35cf0f9e7c62b797e65500429156aa6029144f8eb12224152c4019ac0a34b2483440415fd0415092ccff37af19bd1e54bda775b14a0a37ecdb25d6e0048211a5"},{"id":"reverse","kind":"build","zone":"The trench","title":"Build it: Reverse","story":"Bonus dive. \u003ccode>Echo\u003c/code> printed a word backward. \u003ccode>Reverse\u003c/code> has to \u003ci>return\u003c/i> it as a new string.","ids":["Reverse","word","i"],"code":"std::string Reverse(const std::string& word, int i) {\n  {{A}}\n  {{B}}\n}","hint":"The empty string does for \u003ccode>+\u003c/code> on strings what 0 does for a sum. For the order: the reversed rest of the word has to come \u003ci>first\u003c/i>, and this call's own letter goes on the end.","bonus":true,"blanks":[{"id":"A","name":"Base case","tiles":[{"id":"p","code":"if (i == word.size()) {\n  return word;\n}"},{"id":"q","code":"if (i == word.size()) {\n  return \"\";\n}"},{"id":"r","code":"if (i == word.size() - 1) {\n  return \"\";\n}"}]},{"id":"B","name":"Recursive case","tiles":[{"id":"p","code":"return word.at(i) + Reverse(word, i + 1);"},{"id":"q","code":"return Reverse(word, i + 1);"},{"id":"r","code":"return Reverse(word, i + 1) + word.at(i);"}]}],"tests":[{"main":["std::string word = \"loop\";","std::cout \u003c\u003c Reverse(word, 0);"],"args":{"word":"loop","i":0},"want":"pool","strip":{"name":"word","cells":["l","o","o","p"]}}],"sealed":"651366df0e9dd2a274d6d382c05c2f43fc75be401e2627b72b4ce8878064521272e3933f01ddca8bbc74da584b4b85747a5f24861857ab02991989242567bf927b85624dd46cb8e39747d272651c255b67f050c494ee707d41acab835d8e5bed154499a356a9a70fc6abcd3151d10670988472dcb0667fb0dc7eb7974830b47d32aa2d3dfbc366084974819845cf97257b51f26ac219e67c8c20bc446be9fd08a7893205d71ba446ac6b4c82667fbd92faed87108ccc9c54813ec237994d71e4deee0a1b9bea5e4c66d00e232be88ecc89893e458f527b1da86407d716ae94bcd1ce0b847e012b10f7ac0e7a010ecbe228ccac71aaf4261eff1254d2684f179e76638d1032e143d64ee351e3acb6e02e84e8e65de2b932a4233f9540d2bf663a2eacb82992385df6b07b5c138f058557b7ec6054ace16886cfa2ffacdbc357aa67c52df8fb8e45e30b2ec6ea019866e440006b58e63eaae86f2290ad46cbf4b001c2302e52755924b00a36853e23af123262759f9319c4ce11fb15c6c5599dfd5ce3b49e333a1fbb8e98a0dd12de027ae68c1761fac6b2eca9cad448b1dec29993d912b99805f0"}];
+
+// ------------------------------------------------------------------ setup
+
+const MAIN = LEVELS.filter((l) => !l.bonus).length;
+const KEY = 'stack-dive-v1';
+const AIR = 3;
+const REST_MS = 12000;
+const HINT_DELAY_MS = 60000;
+const AWAY_MS = 30 * 60000;
+const PING_MS = 45000;
+const STEP_MS = 430;
+const CREATURES = ['🐠', '🦀', '🐡', '🐙', '🐢', '🦑', '🐬', '🦈', '🐋', '🦞'];
+
+// Where progress reports go (attendance and the instructor's live board). A
+// copy opened from a file or localhost reports to a local test Worker, never
+// to the live board.
+const LIVE_BOARD = 'https://stack-dive.merge-or-close-board.workers.dev/';
+const IS_LOCAL = location.protocol === 'file:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+const REPORT_URL = IS_LOCAL ? 'http://localhost:8797/' : LIVE_BOARD;
+
+const $ = (id) => document.getElementById(id);
+// Storage can be missing (private windows, blocked site data): every access is guarded.
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* in-memory only */ } },
+  del(k) { try { localStorage.removeItem(k); } catch (e) { /* nothing to clear */ } },
+};
+
+let state = null;
+let runToken = 0;   // bumps whenever the screen changes, to cancel a running animation
+let busy = false;   // a build dive or an automatic descent is playing
+
+// ------------------------------------------------------------------ code rendering
+
+const KEYWORDS = new Set(['int', 'void', 'bool', 'return', 'if', 'else', 'const', 'char', 'double',
+  'true', 'false', 'std', 'string', 'vector', 'cout']);
+
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function highlight(line, ids) {
+  const re = /(\/\/.*$)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])')|(\b\d+\b)|([A-Za-z_]\w*)|([\s\S])/g;
+  let out = '';
+  let m;
+  while ((m = re.exec(line)) !== null) {
+    if (m[1]) out += `<span class="t-com">${esc(m[1])}</span>`;
+    else if (m[2] || m[3]) out += `<span class="t-val">${esc(m[0])}</span>`;
+    else if (m[4] && KEYWORDS.has(m[4])) out += `<span class="t-type">${m[4]}</span>`;
+    else if (m[4] && ids.includes(m[4])) out += `<span class="t-id">${m[4]}</span>`;
+    else out += esc(m[0]);
+  }
+  return out;
+}
+
+function codeBlock(code, ids, numbered = true) {
+  const rows = code.split('\n').map((line, i) =>
+    `<div class="row">${numbered ? `<span class="ln">${i + 1}</span>` : ''}<span class="lc">${highlight(line, ids) || ' '}</span></div>`);
+  return `<div class="code${numbered ? '' : ' nonum'}" role="region" aria-label="Code" tabindex="0">${rows.join('')}</div>`;
+}
+
+// A build dive's code, with each blank showing the chosen tile or a prompt.
+function buildCode(lv, sel) {
+  const rows = [];
+  lv.code.split('\n').forEach((line) => {
+    const block = line.match(/^(\s*)\{\{(\w+)\}\}\s*$/);
+    if (block) {
+      const blank = lv.blanks.find((b) => b.id === block[2]);
+      const tile = blank.tiles.find((t) => t.id === sel[blank.id]);
+      if (tile) tile.code.split('\n').forEach((l) => rows.push(`<div class="row slot"><span class="lc">${block[1]}${highlight(l, lv.ids)}</span></div>`));
+      else rows.push(`<div class="row slot"><span class="lc">${block[1]}<span class="ph">${esc(blank.name.toLowerCase())}: pick a tile below</span></span></div>`);
+      return;
+    }
+    const parts = line.split(/\{\{(\w+)\}\}/);
+    let html = '';
+    parts.forEach((part, i) => {
+      if (i % 2 === 0) { html += highlight(part, lv.ids); return; }
+      const blank = lv.blanks.find((b) => b.id === part);
+      const tile = blank.tiles.find((t) => t.id === sel[blank.id]);
+      html += `<span class="slot-in">${tile ? highlight(tile.code, lv.ids) : '<span class="ph">pick a tile</span>'}</span>`;
+    });
+    rows.push(`<div class="row"><span class="lc">${html || ' '}</span></div>`);
+  });
+  return `<div class="code nonum" role="region" aria-label="Code" tabindex="0">${rows.join('')}</div>`;
+}
+
+function stripHtml(strip, on, on2) {
+  if (!strip) return '';
+  const cells = strip.cells.map((c, i) =>
+    `<div class="cell${i === on ? ' on' : ''}${i === on2 ? ' on2' : ''}"><b>${esc(c)}</b><small>${i}</small></div>`);
+  cells.push(`<div class="cell end${on === strip.cells.length ? ' on' : ''}"><b>the end</b><small>${strip.cells.length}</small></div>`);
+  return `<div class="strip" aria-label="${esc(strip.name)}"><span class="name">${esc(strip.name)}</span>${cells.join('')}</div>`;
+}
+
+function show(v) {
+  if (typeof v === 'boolean') return String(v);
+  if (typeof v === 'string') return `"${v}"`;
+  return String(v);
+}
+
+// ------------------------------------------------------------------ state
+
+function newId() {
+  const bytes = new Uint8Array(8);
+  if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(bytes);
+  else bytes.forEach((_, i) => { bytes[i] = Math.floor(Math.random() * 256); });
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function newWork(lv) {
+  const work = { ans: [], got: {}, sel: {}, tried: [], wrong: 0, outs: 0, hint: false, hintOpen: false, done: false, debrief: '', pearls: 0 };
+  if (lv && lv.kind === 'build') {
+    lv.blanks.forEach((b) => { const g = b.tiles.find((t) => t.given); if (g) work.sel[b.id] = g.id; });
+  }
+  return work;
+}
+
+function fresh(team, players) {
+  const now = Date.now();
+  return { v: 1, id: newId(), team, players, startedAt: now, seenAt: now, enteredAt: now, cur: 0, view: 'dive',
+           res: {}, work: newWork(LEVELS[0]), air: AIR, restUntil: 0, finishedAt: null, allDoneAt: null };
+}
+
+function save() { if (state) store.set(KEY, state); }
+function level() { return LEVELS[state.cur]; }
+function totalPearls() { return Object.values(state.res).reduce((n, r) => n + (r.pearls || 0), 0); }
+function clearedCount() { return Object.values(state.res).filter((r) => !r.skip).length; }
+function marks() {
+  let out = '';
+  for (const lv of LEVELS) {
+    const r = state.res[lv.id];
+    if (!r) break;
+    out += r.skip ? 's' : String(r.pearls);
+  }
+  return out;
+}
+
+function elapsedMs() {
+  return Math.max(0, (state.finishedAt || Date.now()) - state.startedAt);
+}
+
+function fmt(ms) {
+  const s = Math.floor(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+// One snapshot per event for attendance and the instructor's board. Fire and
+// forget: the game never waits on it or breaks without it.
+function report(type, extra = {}) {
+  if (!REPORT_URL || !state) return;
+  const onDive = state.view === 'dive' && state.cur < LEVELS.length && !state.work.done;
+  const body = JSON.stringify(Object.assign({
+    team: state.id, name: state.team, players: state.players || [], type,
+    dive: onDive ? level().id : 'surface',
+    current: Math.min(LEVELS.length, state.cur + (state.view === 'dive' && state.work.done ? 1 : 0)),
+    cleared: clearedCount(), pearls: totalPearls(), marks: marks(),
+    wrong: Object.values(state.res).reduce((n, r) => n + (r.wrong || 0), 0) + state.work.wrong,
+    hints: Object.values(state.res).reduce((n, r) => n + (r.hint ? 1 : 0), 0) + (state.work.hint ? 1 : 0),
+    elapsed: elapsedMs(), finished: !!state.finishedAt,
+  }, extra));
+  try {
+    fetch(REPORT_URL, {
+      method: 'POST', mode: 'no-cors', keepalive: true,
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body,
+    }).catch(() => {});
+  } catch (e) { /* offline or blocked: keep playing */ }
+}
+
+let seenSavedAt = 0;
+// Time away from the page (class ended, laptop closed) doesn't count: a gap
+// longer than AWAY_MS since the page last ticked becomes a pause.
+function catchUp() {
+  const now = Date.now();
+  const gap = now - (state.seenAt || now);
+  if (gap > AWAY_MS) {
+    if (!state.finishedAt) state.startedAt += gap;
+    state.enteredAt += gap;
+  }
+  state.seenAt = now;
+  if (gap > AWAY_MS || now - seenSavedAt > 5000) { seenSavedAt = now; save(); }
+}
+
+function view(id) {
+  runToken++;
+  busy = false;
+  ['v-start', 'v-dive', 'v-done', 'v-coral'].forEach((v) => { $(v).hidden = v !== id; });
+  window.scrollTo(0, 0);
+}
+
+// ------------------------------------------------------------------ start screen
+
+function renderStart() {
+  view('v-start');
+  let n = 0;
+  $('wordmark').innerHTML = ['Stack', 'Dive'].map((word) =>
+    `<span class="w">${word.split('').map((ch) => `<span style="--n:${n++}">${ch}</span>`).join('')}</span>`).join('');
+  const saved = store.get(KEY);
+  const has = !!(saved && saved.v === 1 && saved.team);
+  $('resume').hidden = !has;
+  $('join-title').textContent = has ? 'Or start over as a new team' : 'Sign the dive roster';
+  if (has) {
+    $('resume-team').textContent = saved.team;
+    $('resume-where').textContent = saved.view !== 'dive' || saved.cur >= LEVELS.length ? 'the boat, with your pearls'
+      : `dive ${saved.cur + 1}, ${LEVELS[saved.cur].title}`;
+  }
+}
+
+$('add-p3').addEventListener('click', () => { $('p3-wrap').hidden = false; $('add-p3').hidden = true; $('f-p3').focus(); });
+
+$('join-form').addEventListener('submit', (ev) => {
+  ev.preventDefault();
+  const clean = (id) => $(id).value.replace(/\s+/g, ' ').trim();
+  const team = clean('f-team');
+  const players = ['f-p1', 'f-p2', 'f-p3'].map(clean).filter(Boolean);
+  let err = '';
+  if (!team) err = 'Give your team a name.';
+  else if (!players.length) err = 'Add at least one diver.';
+  else if (players.some((p) => !/\S\s+\S/.test(p))) err = 'Use first and last names, so attendance can find you.';
+  $('join-err').textContent = err;
+  if (err) return;
+  state = fresh(team, players);
+  save();
+  report('join');
+  renderDive();
+});
+
+$('resume-go').addEventListener('click', () => {
+  state = store.get(KEY);
+  catchUp();
+  report('resume');
+  route();
+});
+
+function route() {
+  if (state.view === 'coral') renderCoral();
+  else if (state.view === 'done' || state.cur >= LEVELS.length) renderDone();
+  else renderDive();
+}
+
+// ------------------------------------------------------------------ the dive screen
+
+function renderBar() {
+  $('bar-team').textContent = state.team;
+  $('bar-pearls').textContent = totalPearls();
+  const showBonus = state.cur >= MAIN;
+  $('pips').innerHTML = LEVELS.map((lv, i) => {
+    if (lv.bonus && !showBonus) return '';
+    const r = state.res[lv.id];
+    const cls = ['pip', lv.bonus ? 'bonus' : '', r ? (r.skip ? 'skip' : 'done') : '', i === state.cur && !r ? 'here' : ''].join(' ');
+    return `<span class="${cls}" title="${esc(lv.title)}${r && !r.skip ? ', ' + r.pearls + ' pearls' : ''}">${i + 1}</span>`;
+  }).join('');
+  $('air').innerHTML = Array.from({ length: AIR }, (_, i) => `<i class="${i < state.air ? '' : 'gone'}"></i>`).join('');
+  $('clock').textContent = fmt(elapsedMs());
+}
+
+function renderDive() {
+  state.view = 'dive';
+  view('v-dive');
+  renderLog();
+  renderSea();
+  renderBar();
+  checkRest();
+}
+
+// Left side: the story, the code, the tiles, the hint, and (once cleared) the debrief.
+function renderLog() {
+  const lv = level();
+  const w = state.work;
+  let html = `<p class="zone">${esc(lv.zone)}, dive ${state.cur + 1} of ${state.cur < MAIN ? MAIN : LEVELS.length}</p>
+    <h1>${esc(lv.title)}</h1><p class="story">${lv.story}</p>`;
+  html += lv.kind === 'build' ? buildCode(lv, w.sel) : codeBlock(lv.code, lv.ids);
+  if (lv.kind !== 'build') html += `<div id="strip">${stripNow()}</div>`;
+  if (lv.kind === 'build' && !w.done) {
+    html += lv.blanks.map((b) => `<div class="tiles"><h3>${esc(b.name)}</h3><div class="tileset">${b.tiles.map((t) =>
+      `<button class="tile" data-blank="${b.id}" data-tile="${t.id}" aria-pressed="${w.sel[b.id] === t.id}">${highlight(t.code, lv.ids)}</button>`).join('')}</div></div>`).join('');
+    const ready = lv.blanks.every((b) => w.sel[b.id]);
+    html += `<p><button class="btn run-btn" ${ready && !busy ? '' : 'disabled'}>Dive with these tiles</button></p>`;
+  }
+  if (w.done) {
+    const dots = [1, 2, 3].map((n) => `<span class="pearl-dot${n <= w.pearls ? '' : ' no'}"></span>`).join('');
+    const last = state.cur === MAIN - 1 || state.cur === LEVELS.length - 1;
+    html += `<div class="debrief" id="debrief"><h2>${w.pearls === 3 ? 'A clean dive' : 'Dive cleared'}</h2>
+      <div class="pearls">${dots}<span>${w.pearls} ${w.pearls === 1 ? 'pearl' : 'pearls'}</span></div>
+      ${w.debrief}<button class="btn" id="next">${last ? 'Back to the boat' : 'Next dive'}</button></div>`;
+  } else {
+    if (w.hintOpen) html += `<div class="hint"><b>Hint.</b> ${lv.hint}</div>`;
+    html += `<div class="help">${w.hintOpen ? '' : '<button class="linkish" id="hint-btn"></button>'}
+      <button class="linkish" id="skip-btn">Skip this dive for 0 pearls</button></div>`;
+  }
+  $('log').innerHTML = html;
+  $('log').classList.toggle('flow', lv.kind === 'build');
+  updateHintButton();
+}
+
+function updateHintButton() {
+  const btn = $('hint-btn');
+  if (!btn || !state) return;
+  const left = HINT_DELAY_MS - (Date.now() - state.enteredAt);
+  btn.disabled = left > 0;
+  btn.textContent = left > 0 ? `Hint unlocks in ${fmt(left + 999)}` : 'Show a hint (this dive then pays 2 pearls at most)';
+}
+
+// Which cell of the strip the current frame is standing on.
+function stripNow() {
+  const lv = level();
+  if (!lv.strip) return '';
+  if (lv.kind !== 'trace' || state.work.done) return stripHtml(lv.strip, -1);
+  const t = traceView(lv);
+  if (autoShown !== null) return stripHtml(lv.strip, parseInt(t.frames[Math.min(autoShown, t.frames.length) - 1], 10));
+  const at = t.floor ? t.frames.length - 1 - t.ups.length : t.frames.length - 1;
+  return stripHtml(lv.strip, at >= 0 ? parseInt(t.frames[at], 10) : -1);
+}
+
+$('log').addEventListener('click', (ev) => {
+  const tile = ev.target.closest('.tile');
+  if (tile && !busy) {
+    state.work.sel[tile.dataset.blank] = tile.dataset.tile;
+    save();
+    renderLog();
+    renderSea();
+    return;
+  }
+  if (ev.target.id === 'hint-btn') {
+    state.work.hint = true;
+    state.work.hintOpen = true;
+    save();
+    report('hint');
+    renderLog();
+  } else if (ev.target.id === 'skip-btn') {
+    if (ev.target.dataset.armed) { skipDive(); return; }
+    ev.target.dataset.armed = '1';
+    ev.target.textContent = 'Tap again to skip. You will not see how this one works.';
+  } else if (ev.target.id === 'next') {
+    nextDive();
+  } else if (ev.target.classList.contains('run-btn') && !busy && state.restUntil <= Date.now()) {
+    runBuild(level());
+  }
+});
+
+function enter(i) {
+  state.cur = i;
+  state.view = 'dive';
+  state.work = newWork(LEVELS[i]);
+  state.air = AIR;
+  state.enteredAt = Date.now();
+  save();
+  report('enter');
+  renderDive();
+}
+
+function nextDive() {
+  const next = state.cur + 1;
+  if (next === MAIN || next >= LEVELS.length) {
+    state.cur = next;
+    state.work = newWork(LEVELS[next]);
+    state.view = 'done';
+    if (next >= LEVELS.length && !state.allDoneAt) state.allDoneAt = Date.now();
+    save();
+    report(next >= LEVELS.length ? 'alldone' : 'finish');
+    renderDone();
+  } else {
+    enter(next);
+  }
+}
+
+function skipDive() {
+  const lv = level();
+  state.res[lv.id] = { skip: true, pearls: 0, wrong: state.work.wrong, hint: state.work.hint };
+  if (state.cur === MAIN - 1 && !state.finishedAt) state.finishedAt = Date.now();
+  report('skip');
+  nextDive();
+}
+
+function pearlsFor(w) {
+  if (w.outs > 0) return 1;
+  return w.wrong === 0 && !w.hint ? 3 : 2;
+}
+
+// The pair got everything right: open the sealed debrief with their answers.
+function complete(answers) {
+  const lv = level();
+  const w = state.work;
+  w.done = true;
+  w.pearls = pearlsFor(w);
+  w.debrief = unseal(lv.sealed, debriefKey(lv.id, answers)) || '';
+  state.res[lv.id] = { pearls: w.pearls, wrong: w.wrong, outs: w.outs, hint: w.hint, ms: Date.now() - state.enteredAt };
+  if (state.cur === MAIN - 1 && !state.finishedAt) state.finishedAt = Date.now();
+  save();
+  report('clear');
+  renderLog();
+  renderSea();
+  renderBar();
+  const card = $('debrief');
+  if (card && window.matchMedia('(max-width: 860px)').matches) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const next = $('next');
+  if (next) next.focus({ preventScroll: true });
+}
+
+// A wrong answer: one breath gone. Out of breaths: rest at the surface.
+function wrong(guess, message) {
+  const w = state.work;
+  w.wrong++;
+  state.air--;
+  report('wrong', { guess: String(guess).slice(0, 24) });
+  if (state.air <= 0) {
+    w.outs++;
+    w.hintOpen = true;
+    state.air = AIR;
+    state.restUntil = Date.now() + REST_MS;
+    report('air');
+  }
+  save();
+  renderBar();
+  renderLog();
+  const say = document.querySelector('#sea .say');
+  if (say) { say.textContent = message; say.classList.remove('good'); }
+  const box = document.querySelector('#sea .frame.active, #sea .terminal, #sea .tbox.open');
+  if (box) { box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake'); }
+  checkRest();
+}
+
+function checkRest() {
+  const left = state && state.view === 'dive' ? state.restUntil - Date.now() : 0;
+  const resting = left > 0;
+  if (resting && $('rest').hidden) $('rest-hint').innerHTML = level().hint;
+  if (!resting && !$('rest').hidden) { $('rest').hidden = true; focusAsk(); return; }
+  $('rest').hidden = !resting;
+  if (resting) $('rest-count').textContent = `${Math.ceil(left / 1000)} s`;
+}
+
+function focusAsk() {
+  const el = document.querySelector('#sea input:not(:disabled)');
+  if (el && $('rest').hidden) el.focus({ preventScroll: true });
+}
+
+function boatHtml(lv, extra = '') {
+  return `<div class="boat"><div class="where"><span>The boat</span><small>main()</small></div>
+    <pre>${lv.main.map((l) => highlight(l, lv.ids)).join('\n')}</pre>${extra}</div>`;
+}
+
+function renderSea() {
+  const lv = level();
+  if (lv.kind === 'trace') renderTrace(lv);
+  else if (lv.kind === 'build') renderBuild(lv);
+  else if (lv.kind === 'ask') renderAsk(lv);
+  else renderTree(lv);
+  if (!busy) focusAsk();
+}
+
+// ------------------------------------------------------------------ trace dives
+
+// What the pair has established so far, read back from their accepted answers.
+function traceView(lv) {
+  const ans = state.work.ans;
+  if (lv.autoDown) return { frames: [lv.first, ...lv.autoDown], floor: true, ups: ans };
+  const f = ans.indexOf('floor');
+  if (f < 0) return { frames: [lv.first, ...ans], floor: false, ups: [] };
+  return { frames: [lv.first, ...ans.slice(0, f)], floor: true, ups: ans.slice(f + 1) };
+}
+
+let autoShown = null;  // how many frames of an automatic descent are on screen
+
+function renderTrace(lv) {
+  const w = state.work;
+  const t = traceView(lv);
+  let frames = t.frames;
+  let floor = t.floor;
+  const diving = lv.autoDown && !w.done && !t.ups.length && autoShown !== null;
+  if (diving) { frames = frames.slice(0, autoShown); floor = autoShown > t.frames.length; }
+  const n = t.frames.length;
+  const returned = (i) => t.floor && i >= n - t.ups.length;        // frame i has sent its answer up
+  const activeUp = t.floor ? n - 1 - t.ups.length : -1;            // the frame that returns next
+  const callOf = (x) => lv.call.replace('{x}', esc(x));
+  const items = frames.map((x, i) => {
+    const isNew = i === frames.length - 1 && !t.floor;
+    let cls = 'frame';
+    let body = '';
+    if (returned(i)) {
+      cls += ' done';
+      body = `<div class="status">returned <b>${esc(t.ups[n - 1 - i])}</b></div>`;
+    } else if (!diving && !t.floor && i === n - 1) {
+      cls += ' active';
+      const parts = lv.call.split('{x}');
+      body = `<form class="ask" data-kind="down">
+        <p class="q">What does this call do next?</p>
+        <div class="opt"><span class="mono">It calls ${esc(parts[0])}</span><input name="v" inputmode="numeric" maxlength="6" aria-label="${esc(lv.param)} for the next call" autocomplete="off"><span class="mono">${esc(parts[1])}</span>
+          <button class="btn">Dive deeper</button></div>
+        <p class="or">or</p>
+        <div class="opt"><button type="button" class="btn quiet" id="floor-btn">It is the base case: touch the sea floor</button></div>
+        <p class="say" role="status"></p></form>`;
+    } else if (!diving && i === activeUp) {
+      cls += ' active';
+      const got = i < n - 1 ? `<div class="status">The call below sent back <b>${esc(t.ups[t.ups.length - 1])}</b>.</div>` : '<div class="status">The base case. Nothing below to wait for.</div>';
+      body = `${got}<form class="ask" data-kind="up"><div class="opt"><label class="mono" for="up-in">It returns</label>
+        <input id="up-in" name="v" inputmode="numeric" maxlength="8" autocomplete="off"><button class="btn">Send it up</button></div>
+        <p class="say" role="status"></p></form>`;
+    } else {
+      body = '<div class="status">paused, waiting on the call below</div>';
+    }
+    if (isNew || diving) cls += ' enter';
+    return `<li class="${cls}" data-depth="${i + 1}"><div class="call">${callOf(x)}</div>${body}</li>`;
+  }).join('');
+  const out = w.done ? `<div class="out">It prints <b>${esc(t.ups[t.ups.length - 1])}</b></div>` : '';
+  const floorHtml = floor ? `<div class="floor"><span>${CREATURES[state.cur % CREATURES.length]}</span>Sea floor: the base case. No more calls.</div>` : '';
+  $('sea').innerHTML = `${boatHtml(lv, out)}<ol class="frames">${items}</ol>${floorHtml}`;
+  const strip = $('strip');
+  if (strip) strip.innerHTML = stripNow();
+  if (lv.autoDown && !w.done && !w.dived && !t.ups.length && autoShown === null) autoDescend(lv, t.frames.length);
+}
+
+// Plays the descent of a dive whose way down is given.
+async function autoDescend(lv, total) {
+  const token = ++runToken;
+  busy = true;
+  for (let k = 1; k <= total + 1; k++) {
+    autoShown = k;
+    renderTrace(lv);
+    await sleep(STEP_MS + 120);
+    if (token !== runToken) { autoShown = null; return; }
+  }
+  autoShown = null;
+  busy = false;
+  // Mark the descent as played so a reload goes straight to the questions.
+  state.work.dived = true;
+  save();
+  renderTrace(lv);
+  focusAsk();
+}
+
+function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+function traceAnswer(lv, value) {
+  const w = state.work;
+  const step = w.ans.length;
+  if (stepHash(lv.id, step, value) !== lv.hashes[step]) return false;
+  w.ans.push(value === 'floor' ? 'floor' : norm(value));
+  save();
+  const t = traceView(lv);
+  if (t.floor && t.ups.length === t.frames.length) complete(w.ans);
+  else { renderTrace(lv); focusAsk(); }
+  return true;
+}
+
+$('sea').addEventListener('submit', (ev) => {
+  ev.preventDefault();
+  if (busy || state.restUntil > Date.now()) return;
+  const lv = level();
+  const form = ev.target;
+  const input = form.querySelector('input');
+  const value = input ? input.value.trim() : '';
+  if (!value) { if (input) input.focus(); return; }
+  if (lv.kind === 'trace') {
+    if (!traceAnswer(lv, value)) {
+      wrong(value, form.dataset.kind === 'down' ? 'That is not what this call does next. One breath gone.' : 'That is not what this call returns. One breath gone.');
+      input.select();
+    }
+  } else if (lv.kind === 'ask') {
+    askAnswer(lv, value, input);
+  } else if (lv.kind === 'tree') {
+    treeAnswer(lv, form, value, input);
+  }
+});
+
+$('sea').addEventListener('click', (ev) => {
+  if (busy || state.restUntil > Date.now()) return;
+  const lv = level();
+  if (ev.target.id === 'floor-btn') {
+    if (!traceAnswer(lv, 'floor')) wrong('floor', 'Not yet: the base case test is still false for this call. One breath gone.');
+  } else if (ev.target.classList.contains('run-btn')) {
+    runBuild(lv);
+  }
+});
+
+// ------------------------------------------------------------------ build dives
+
+function buildTag(lv, sel) { return lv.blanks.map((b) => b.id + (sel[b.id] || '?')).join(''); }
+
+function testsHtml(lv, marksByTest) {
+  return `<ol class="tests">${lv.tests.map((t, i) => {
+    const m = marksByTest[i];
+    return `<li class="${m === true ? 'pass' : m === false ? 'fail' : ''}"><span class="mark">${m === true ? '✓' : m === false ? '✗' : i + 1 + '.'}</span>
+      <div><pre>${t.main.map((l) => highlight(l, lv.ids)).join('\n')}</pre><div class="want">should print <b>${esc(String(t.want))}</b></div></div></li>`;
+  }).join('')}</ol>`;
+}
+
+function tankHtml(used, over) {
+  return `<span class="tank${over ? ' over' : ''}" title="The stack">${Array.from({ length: TANK }, (_, i) => `<i class="${i < used ? 'used' : ''}"></i>`).join('')}<span>air for ${TANK} frames</span></span>`;
+}
+
+function renderBuild(lv, live) {
+  const w = state.work;
+  const ready = lv.blanks.every((b) => w.sel[b.id]);
+  const v = live || { marks: w.done ? lv.tests.map(() => true) : [], frames: '', verdict: '', used: 0, over: false, strip: stripHtml(lv.strip, -1) };
+  const go = w.done ? '' : `<div class="go"><button class="btn run-btn" id="run-btn" ${ready && !busy ? '' : 'disabled'}>${busy ? 'Diving' : 'Dive'}</button>${tankHtml(v.used, v.over)}</div>
+    ${ready ? '' : '<p class="want">Pick a tile for every blank first.</p>'}`;
+  $('sea').innerHTML = `<div class="boat"><div class="where"><span>The boat</span><small>main() runs ${lv.tests.length === 1 ? 'this test' : 'these tests'}</small></div>
+    ${testsHtml(lv, v.marks)}${go}</div>${v.strip}<ol class="frames">${v.frames}</ol>${v.verdict}`;
+}
+
+// Runs what the pair built, one test at a time, and plays it back.
+async function runBuild(lv) {
+  const w = state.work;
+  const sel = Object.assign({}, w.sel);
+  const token = ++runToken;
+  busy = true;
+  renderLog();
+  $('sea').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const live = { marks: [], frames: '', verdict: '', used: 0, over: false, strip: '' };
+  let failure = null;
+  for (let ti = 0; ti < lv.tests.length && !failure; ti++) {
+    const test = lv.tests[ti];
+    const run = runDive(lv.id, sel, test.args);
+    const cards = [];
+    const draw = () => {
+      live.frames = cards.join('');
+      renderBuild(lv, live);
+    };
+    const strip = test.strip || lv.strip;
+    live.strip = '';
+    live.verdict = '';
+    live.over = false;
+    for (const e of run.events) {
+      if (e.t === 'call') {
+        if (strip) live.strip = stripHtml(strip, 'i' in callArgs(e) ? callArgs(e).i : callArgs(e).left, callArgs(e).right);
+        if (cards.length) cards[cards.length - 1] = cards[cards.length - 1].replace('frame active enter', 'frame').replace('running', 'paused, waiting on the call below');
+        if (e.depth > TANK) {
+          live.over = true;
+          cards.push(`<li class="frame crash enter" data-depth="${e.depth}"><div class="call">${esc(e.label)}</div>
+            <div class="status">No air left for this frame. A real stack holds a few hundred thousand frames, then:</div><pre>zsh: segmentation fault  ./dive</pre></li>`);
+        } else {
+          cards.push(`<li class="frame active enter" data-depth="${e.depth}"><div class="call">${esc(e.label)}</div><div class="status">running</div></li>`);
+          live.used = e.depth;
+        }
+      } else {
+        const i = e.depth - 1;
+        cards[i] = `<li class="frame done" data-depth="${e.depth}"><div class="call">${esc(e.label || labelOf(cards[i]))}</div><div class="status">returned <b>${esc(show(e.value))}</b></div></li>`;
+        live.used = e.depth - 1;
+      }
+      draw();
+      await sleep(STEP_MS);
+      if (token !== runToken) return;
+    }
+    const end = run.end;
+    if (end.kind === 'range') {
+      cards[cards.length - 1] = cards[cards.length - 1].replace('frame active enter', 'frame').replace('running', 'crashed on this call');
+      cards.push(`<li class="frame crash enter" data-depth="!"><div class="call">.at() reached past the end</div>
+        <pre>libc++abi: terminating due to uncaught exception of type std::out_of_range: ${esc(end.what)}\nzsh: abort      ./dive</pre></li>`);
+    }
+    const pass = end.kind === 'value' && end.value === test.want;
+    live.marks[ti] = pass;
+    if (pass) {
+      live.verdict = `<div class="verdict good">Surfaced with <b>${esc(show(end.value))}</b>. ${ti < lv.tests.length - 1 ? 'Next test.' : ''}</div>`;
+    } else {
+      failure = end.kind === 'value' ? show(end.value) : end.kind;
+      live.verdict = `<div class="verdict bad">${end.kind === 'value' ? `Surfaced with <b>${esc(show(end.value))}</b>, but the boat wanted <b>${esc(show(test.want))}</b>.`
+        : end.kind === 'overflow' ? 'Stack overflow: the calls never reached a base case, so the dive ran out of air.'
+        : 'The program crashed before it could surface.'} Change a tile and dive again.</div>`;
+    }
+    draw();
+    const verdict = document.querySelector('#sea .verdict');
+    if (verdict) verdict.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    await sleep(pass ? STEP_MS * 2.2 : 0);
+    if (token !== runToken) return;
+  }
+  busy = false;
+  if (!failure) { complete(lv.blanks.map((b) => sel[b.id])); return; }
+  const tag = buildTag(lv, sel);
+  const given = lv.blanks.every((b) => { const t = b.tiles.find((x) => x.id === sel[b.id]); return t && t.given; });
+  renderBuild(lv, live);
+  renderLog();
+  if (!given && !w.tried.includes(tag)) {
+    w.tried.push(tag);
+    wrong(`${tag}=${failure}`, '');
+  }
+}
+
+function labelOf(card) { const m = card.match(/<div class="call">(.*?)<\/div>/); return m ? m[1].replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&') : ''; }
+// The numbers inside a call label, for lighting up the strip.
+function callArgs(e) {
+  const nums = (e.label.match(/-?\d+/g) || []).map(Number);
+  return nums.length > 1 ? { left: nums[0], right: nums[1] } : { i: nums[0] };
+}
+
+// ------------------------------------------------------------------ ask dives
+
+function fieldsHtml(lv, offset, startAt) {
+  const w = state.work;
+  let html = '';
+  lv.fields.forEach((f, i) => {
+    if (i > w.ans.length - startAt) return;
+    if (i < w.ans.length - startAt) {
+      html += `<p class="q">${f.prompt}</p><p class="done-line">${esc(w.ans[startAt + i])}</p>`;
+    } else if (!w.done) {
+      html += `<form class="ask" data-field="${offset + i}"><p class="q"><label for="ask-in">${f.prompt}</label></p>
+        <div class="opt"><input id="ask-in" name="v" class="${f.wide ? 'wide' : ''}" maxlength="24" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(f.placeholder || '')}">
+        <button class="btn">Check</button></div><p class="say" role="status"></p></form>`;
+    }
+  });
+  return html;
+}
+
+function renderAsk(lv) {
+  $('sea').innerHTML = `${boatHtml(lv)}<div class="terminal">${fieldsHtml(lv, 0, 0)}</div>`;
+}
+
+function askAnswer(lv, value, input) {
+  const w = state.work;
+  const step = w.ans.length;
+  if (stepHash(lv.id, step, value) !== lv.hashes[step]) {
+    wrong(value, lv.fields[step].wide ? 'The terminal shows something else. One breath gone.' : 'Not that. One breath gone.');
+    input.select();
+    return;
+  }
+  w.ans.push(norm(value));
+  save();
+  if (w.ans.length === lv.fields.length) complete(w.ans);
+  else { renderAsk(lv); focusAsk(); }
+}
+
+// ------------------------------------------------------------------ tree dives
+
+function treeNode(lv, i) {
+  const w = state.work;
+  const node = lv.nodes[i];
+  const solved = i in w.got;
+  const open = !solved && node.kids.every((k) => k in w.got);
+  let body;
+  if (solved) body = `<div class="ret">returns ${esc(w.got[i])}</div>`;
+  else if (open) body = `<form data-node="${i}"><input name="v" inputmode="numeric" maxlength="3" aria-label="${esc(node.label)} returns" autocomplete="off"><button aria-label="Check">✓</button></form>`;
+  else body = '<div class="wait">waiting</div>';
+  const kids = node.kids.length ? `<div class="tkids">${node.kids.map((k) => treeNode(lv, k)).join('')}</div>` : '';
+  return `<div class="tnode"><div class="tbox${open ? ' open' : ''}${solved ? ' solved' : ''}"><div class="call">${esc(node.label)}</div>${body}</div>${kids}</div>`;
+}
+
+function renderTree(lv) {
+  const w = state.work;
+  const allNodes = lv.nodes.every((_, i) => i in w.got);
+  const tail = allNodes ? `<div class="terminal">${fieldsHtml(lv, lv.nodes.length, 0)}</div>` : '<p class="say" role="status"></p>';
+  $('sea').innerHTML = `${boatHtml(lv, w.done ? `<div class="out">It prints <b>${esc(w.got[lv.root])}</b></div>` : '')}
+    <div class="treewrap"><div class="tree">${treeNode(lv, lv.root)}</div></div>${tail}`;
+}
+
+function treeAnswer(lv, form, value, input) {
+  const w = state.work;
+  const isNode = 'node' in form.dataset;
+  const step = isNode ? Number(form.dataset.node) : lv.nodes.length + w.ans.length;
+  if (stepHash(lv.id, step, value) !== lv.hashes[step]) {
+    wrong(`${isNode ? lv.nodes[step].label : 'calls'}=${value}`, isNode ? 'That is not what that call returns. One breath gone.' : 'Count again. One breath gone.');
+    const again = document.querySelector(isNode ? `#sea form[data-node="${step}"] input` : '#ask-in');
+    if (again) again.select();
+    return;
+  }
+  if (isNode) w.got[step] = norm(value); else w.ans.push(norm(value));
+  save();
+  if (w.ans.length === lv.fields.length) complete([...lv.nodes.map((_, i) => w.got[i]), ...w.ans]);
+  else { renderTree(lv); focusAsk(); }
+}
+
+// ------------------------------------------------------------------ back on the boat
+
+function renderDone() {
+  state.view = 'done';
+  save();
+  view('v-done');
+  const pearls = totalPearls();
+  const mainPearls = LEVELS.slice(0, MAIN).reduce((n, l) => n + ((state.res[l.id] || {}).pearls || 0), 0);
+  const all = state.cur >= LEVELS.length;
+  const rank = mainPearls >= MAIN * 3 - 3 ? 'Deep sea legend' : mainPearls >= MAIN * 2 ? 'Reef navigator' : 'Certified diver';
+  const bonus = LEVELS.length - MAIN;
+  $('done').innerHTML = `<p class="zone">${esc(state.team)}</p>
+    <h1 class="done-title">${all ? 'The trench is cleared' : 'You surfaced'}</h1>
+    <p class="pitch">${all ? 'Every dive on the chart is done. Nothing left down there but coral.' : `All ${MAIN} dives are in the log. Your rank: ${rank}.`}</p>
+    <div class="haul">
+      <div><b>${pearls}</b><span>of ${(all ? LEVELS.length : MAIN) * 3} pearls</span></div>
+      <div><b>${fmt(elapsedMs())}</b><span>to finish ${MAIN} dives</span></div>
+      <div><b>${clearedCount()}</b><span>dives cleared</span></div>
+    </div>
+    <div class="nexts">
+      ${all || !bonus ? '' : `<button class="btn" id="go-bonus">Go deeper: ${bonus} bonus dives in the trench</button>`}
+      <button class="btn${all || !bonus ? '' : ' quiet'}" id="go-coral">Grow a coral</button>
+    </div>`;
+}
+
+$('done').addEventListener('click', (ev) => {
+  if (ev.target.id === 'go-bonus') enter(MAIN);
+  else if (ev.target.id === 'go-coral') renderCoral();
+});
+
+// ------------------------------------------------------------------ the coral
+
+const CORAL_CODE = `void Grow(double length, int depth) {
+  if (depth == 0) {
+    return;
+  }
+  DrawBranch(length);
+  // one recursive call per branch
+  Grow(length * SHRINK, depth - 1);
+}`;
+let coralFrame = 0;
+
+function renderCoral() {
+  state.view = 'coral';
+  save();
+  view('v-coral');
+  report('coral');
+  drawCoral();
+}
+
+function drawCoral() {
+  cancelAnimationFrame(coralFrame);
+  const depth = Number($('c-depth').value);
+  const kids = Number($('c-kids').value);
+  const spread = Number($('c-spread').value);
+  const shrink = Number($('c-shrink').value) / 100;
+  $('o-depth').textContent = depth;
+  $('o-kids').textContent = kids;
+  $('o-spread').textContent = spread + '°';
+  $('o-shrink').textContent = shrink.toFixed(2);
+  let calls = 0;
+  for (let d = 0; d <= depth; d++) calls += Math.pow(kids, d);
+  $('coral-calls').textContent = `Grow was called ${calls.toLocaleString()} times to draw this.`;
+  const lines = CORAL_CODE.replace('SHRINK', shrink.toFixed(2)).split('\n');
+  const callLine = lines[6];
+  lines.splice(6, 1, ...Array.from({ length: kids }, () => callLine));
+  $('coral-code').innerHTML = codeBlock(lines.join('\n'), ['Grow', 'DrawBranch', 'length', 'depth'], false);
+
+  const canvas = $('coral');
+  const ctx = canvas.getContext('2d');
+  const colors = ['#FF7900', '#F58A1F', '#EDA941', '#F3CD47', '#C9D98F', '#8ACCE4'];
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // The function on the left, for real: each call draws one branch, then calls itself.
+  function grow(x, y, length, angle, d, sway) {
+    if (d === 0) return;
+    const x2 = x + Math.sin(angle) * length;
+    const y2 = y - Math.cos(angle) * length;
+    ctx.strokeStyle = colors[Math.min(colors.length - 1, Math.floor((depth - d) * colors.length / Math.max(1, depth)))];
+    ctx.lineWidth = Math.max(1, d * 1.5);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    for (let k = 0; k < kids; k++) {
+      const turn = kids === 1 ? 0.35 : (k / (kids - 1) - 0.5) * 2;
+      grow(x2, y2, length * shrink, angle + turn * spread * Math.PI / 180 + sway, d - 1, sway);
+    }
+  }
+  function frame(t) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.lineCap = 'round';
+    ctx.fillStyle = '#C98A2B';
+    ctx.fillRect(0, canvas.height - 14, canvas.width, 14);
+    grow(canvas.width / 2, canvas.height - 14, 150 * (1 - shrink) / 0.28, 0, depth, still ? 0 : Math.sin(t / 1400) * 0.035);
+    if (!still && !$('v-coral').hidden) coralFrame = requestAnimationFrame(frame);
+  }
+  frame(0);
+}
+
+['c-depth', 'c-kids', 'c-spread', 'c-shrink'].forEach((id) => $(id).addEventListener('input', drawCoral));
+$('coral-back').addEventListener('click', () => { cancelAnimationFrame(coralFrame); renderDone(); });
+
+// ------------------------------------------------------------------ ticking
+
+let lastPing = Date.now();
+setInterval(() => {
+  if (!state || $('v-start').hidden === false) return;
+  catchUp();
+  if (!$('v-dive').hidden) {
+    $('clock').textContent = fmt(elapsedMs());
+    updateHintButton();
+    checkRest();
+  }
+  if (document.visibilityState === 'visible' && Date.now() - lastPing > PING_MS) { lastPing = Date.now(); report('ping'); }
+}, 500);
+
+window.STACK_TEST = { LEVELS, stepHash, debriefKey, unseal, runDive };
+renderStart();
+</script>
+</body>
+</html>
